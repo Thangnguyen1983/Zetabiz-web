@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Đăng nhập quản trị – BIZTECK</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231D4ED8'/%3E%3Ccircle cx='16' cy='12' r='5' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M16 17v9M10 24c2 2 10 2 12 0' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>
+.shell{min-height:100%;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
+.brand{position:relative;overflow:hidden;background:var(--navy);color:#E8ECFF;padding:48px clamp(24px,5vw,72px);display:flex;flex-direction:column;justify-content:space-between;gap:40px}
+.brand canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.9}
+.brand > *:not(canvas){position:relative}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.02em;color:#fff;text-decoration:none}
+.brand h1{font-size:clamp(30px,3.4vw,44px);line-height:1.12;font-weight:600;max-width:460px}
+.brand h1 span{color:#FDBA74}
+.brand p{color:#A9B6E6;max-width:420px;margin-top:14px}
+.perks{display:grid;gap:14px;max-width:420px}
+.perk{display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(8px)}
+.perk b{display:block;font-size:14px;color:#fff}
+.perk small{display:block;font-size:12px;color:#A9B6E6}
+.panel{display:flex;align-items:center;justify-content:center;padding:40px 20px}
+.card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:32px;box-shadow:0 30px 60px -30px rgba(11,27,63,.25);display:flex;flex-direction:column;gap:18px}
+.card h2{font-size:24px;font-weight:600}
+.card .sub{color:var(--muted);font-size:14px;margin-top:6px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--primary)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:14px}
+.pw-wrap{position:relative}
+.pw-wrap input{width:100%;padding-right:84px}
+.pw-toggle{position:absolute;right:6px;top:6px;height:34px;padding:0 10px;border-radius:8px;border:0;background:#EEF2F8;color:var(--text-2);font-size:12px;cursor:pointer}
+.foot{font-size:13px;color:var(--muted);text-align:center}
+.secure{display:flex;align-items:center;gap:8px;justify-content:center;font-size:12px;color:var(--muted)}
+@media (max-width:880px){
+  .shell{grid-template-columns:1fr}
+  .brand{padding:28px 20px;gap:18px}
+  .brand .perks,.brand .copy p{display:none}
+  .brand h1{font-size:26px}
+  .panel{padding:24px 16px 40px}
+  .card{padding:24px}
+}
+@media (prefers-reduced-motion: reduce){.brand canvas{display:none}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="brand" aria-label="Giới thiệu cổng quản trị">
+    <canvas id="bg" aria-hidden="true"></canvas>
+    <a class="logo" href="/">
+      <svg width="28" height="28" viewBox="0 0 30 30" fill="none" stroke="#8FB0FF" stroke-width="1.6" aria-hidden="true"><circle cx="15" cy="10" r="6"/><path d="M15 16v10M9 24c2 2 10 2 12 0M6 19c4-2 14-2 18 0"/></svg>
+      BIZTECK
+    </a>
+    <div class="copy">
+      <h1>Cổng quản trị <span>BIZTECK</span></h1>
+      <p>Quản lý khách tiềm năng, báo giá, gói dịch vụ và thanh toán cho toàn bộ sản phẩm trên nền tảng.</p>
+    </div>
+    <div class="perks">
+      <div class="perk"><span class="i3d t-sky"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10" cy="8" r="4" fill="#fff"/><path d="M3 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5z" fill="#fff" fill-opacity=".7"/><path d="M19 6.5v6M16 9.5h6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></span><span><b>Khách tiềm năng từ website</b><small>Tự về đây khi khách để lại thông tin</small></span></div>
+      <div class="perk"><span class="i3d t-green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2.5" fill="#fff"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10" stroke="#fff" stroke-width="2" fill="none"/><circle cx="12" cy="15" r="1.6" fill="#047857"/></svg></span><span><b>Phân quyền theo vai trò</b><small>Quản trị, kinh doanh, kế toán, biên tập</small></span></div>
+      <div class="perk"><span class="i3d t-pink"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M11 2.5l2.2 6.3 6.3 2.2-6.3 2.2L11 19.5l-2.2-6.3L2.5 11l6.3-2.2z" fill="#fff"/></svg></span><span><b>Trợ lý AI</b><small>Nhắc việc cần làm mỗi ngày</small></span></div>
+    </div>
+  </aside>
+
+  <main class="panel">
+    <!-- Đăng nhập -->
+    <form class="card" id="f-login" novalidate>
+      <div>
+        <span class="eyebrow">KHU VỰC NỘI BỘ</span>
+        <h2 style="margin-top:8px">Đăng nhập quản trị</h2>
+        <p class="sub">Dành cho nhân sự MHT BIZ đã được cấp quyền.</p>
+      </div>
+      <div class="msg" id="login-msg" role="alert" hidden></div>
+      <div class="field"><label for="l-email">Email</label><input id="l-email" type="email" autocomplete="username" required placeholder="ten@mhtbiz.com"></div>
+      <div class="field"><label for="l-pass">Mật khẩu</label>
+        <div class="pw-wrap"><input id="l-pass" type="password" autocomplete="current-password" required minlength="8"><button type="button" class="pw-toggle" data-for="l-pass" aria-controls="l-pass" aria-pressed="false" aria-label="Hiện mật khẩu">Hiện</button></div>
+      </div>
+      <div class="row"><span></span><button type="button" class="link-btn" data-go="reset">Quên mật khẩu?</button></div>
+      <button class="btn btn-primary" type="submit" id="l-submit">Đăng nhập</button>
+      <p class="foot">Lần đầu vào hệ thống hoặc vừa được mời? <button type="button" class="link-btn" data-go="signup">Tạo mật khẩu</button></p>
+      <p class="secure"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Kết nối mã hóa · Mọi thao tác được ghi nhật ký</p>
+    </form>
+
+    <!-- Tạo tài khoản -->
+    <form class="card" id="f-signup" novalidate hidden>
+      <div>
+        <span class="eyebrow">TẠO TÀI KHOẢN</span>
+        <h2 style="margin-top:8px">Tạo mật khẩu quản trị</h2>
+        <p class="sub" id="signup-hint">Dùng đúng email đã được mời. Tài khoản chỉ có quyền khi email nằm trong danh sách được mời.</p>
+      </div>
+      <div class="msg" id="signup-msg" role="alert" hidden></div>
+      <div class="field"><label for="s-email">Email</label><input id="s-email" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="s-pass">Mật khẩu mới (tối thiểu 8 ký tự)</label>
+        <div class="pw-wrap"><input id="s-pass" type="password" autocomplete="new-password" required minlength="8"><button type="button" class="pw-toggle" data-for="s-pass" aria-controls="s-pass" aria-pressed="false" aria-label="Hiện mật khẩu">Hiện</button></div>
+      </div>
+      <div class="field"><label for="s-pass2">Nhập lại mật khẩu</label><input id="s-pass2" type="password" autocomplete="new-password" required minlength="8"></div>
+      <button class="btn btn-primary" type="submit" id="s-submit">Tạo tài khoản</button>
+      <p class="foot"><button type="button" class="link-btn" data-go="login">← Quay lại đăng nhập</button></p>
+    </form>
+
+    <!-- Quên mật khẩu -->
+    <form class="card" id="f-reset" novalidate hidden>
+      <div>
+        <span class="eyebrow">KHÔI PHỤC</span>
+        <h2 style="margin-top:8px">Đặt lại mật khẩu</h2>
+        <p class="sub">Nhập email, hệ thống gửi đường dẫn đặt lại mật khẩu.</p>
+      </div>
+      <div class="msg" id="reset-msg" role="alert" hidden></div>
+      <div class="field"><label for="r-email">Email</label><input id="r-email" type="email" autocomplete="username" required></div>
+      <button class="btn btn-primary" type="submit" id="r-submit">Gửi đường dẫn</button>
+      <p class="foot"><button type="button" class="link-btn" data-go="login">← Quay lại đăng nhập</button></p>
+    </form>
+
+    <!-- Đặt mật khẩu mới (sau khi bấm link email) -->
+    <form class="card" id="f-update" novalidate hidden>
+      <div>
+        <span class="eyebrow">MẬT KHẨU MỚI</span>
+        <h2 style="margin-top:8px">Đặt mật khẩu mới</h2>
+      </div>
+      <div class="msg" id="update-msg" role="alert" hidden></div>
+      <input type="email" id="u-user" autocomplete="username" hidden aria-hidden="true" tabindex="-1">
+      <div class="field"><label for="u-pass">Mật khẩu mới (tối thiểu 8 ký tự)</label><input id="u-pass" type="password" autocomplete="new-password" required minlength="8"></div>
+      <button class="btn btn-primary" type="submit" id="u-submit">Lưu mật khẩu</button>
+    </form>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script>
+(function () {
+  const HASH = new URLSearchParams(location.hash.slice(1));
+  const isRecovery = HASH.get('type') === 'recovery';
+  const hashErr = HASH.get('error_description');
+  const sb = window.bizSb, CFG = window.BIZTECK_ADMIN;
+  const forms = { login: 'f-login', signup: 'f-signup', reset: 'f-reset', update: 'f-update' };
+  const $ = function (id) { return document.getElementById(id); };
+  function show(name) {
+    Object.keys(forms).forEach(function (k) { $(forms[k]).hidden = k !== name; });
+    const first = $(forms[name]).querySelector('input'); if (first) first.focus();
+  }
+  function msg(id, text, kind) { const el = $(id); el.textContent = text; el.className = 'msg ' + (kind || 'err'); el.hidden = !text; }
+  function busy(btn, on, label) { btn.disabled = on; if (label) btn.textContent = label; }
+  document.querySelectorAll('[data-go]').forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.go); }); });
+  document.querySelectorAll('.pw-toggle').forEach(function (b) {
+    b.addEventListener('click', function () { const i = $(b.dataset.for); const vis = i.type === 'text'; i.type = vis ? 'password' : 'text'; b.textContent = vis ? 'Hiện' : 'Ẩn'; b.setAttribute('aria-pressed', vis ? 'false' : 'true'); b.setAttribute('aria-label', vis ? 'Hiện mật khẩu' : 'Ẩn mật khẩu'); });
+  });
+  const viErr = function (e) {
+    const m = (e && (e.message || e.error_description)) || '';
+    if (/Invalid login credentials/i.test(m)) return 'Email hoặc mật khẩu không đúng.';
+    if (/Email not confirmed/i.test(m)) return 'Email chưa được xác nhận. Mở hộp thư và bấm đường dẫn xác nhận trước khi đăng nhập.';
+    if (/User already registered/i.test(m)) return 'Email này đã có tài khoản. Hãy đăng nhập, hoặc dùng "Quên mật khẩu".';
+    if (/rate limit|too many/i.test(m)) return 'Bạn thử quá nhiều lần. Vui lòng đợi vài phút rồi thử lại.';
+    if (/Password should be/i.test(m)) return 'Mật khẩu chưa đủ mạnh. Dùng ít nhất 8 ký tự, có chữ và số.';
+    return m || 'Có lỗi xảy ra. Vui lòng thử lại.';
+  };
+
+  /* Sau khi đăng nhập: xác định quyền, nhận quyền khởi tạo / lời mời nếu có */
+  async function routeAfterLogin(msgId) {
+    const u = (await sb.auth.getUser()).data.user;
+    if (!u) return;
+    let staff = (await sb.rpc('is_staff', { _user_id: u.id })).data === true;
+    if (!staff) {
+      const email = (u.email || '').toLowerCase();
+      const exists = (await sb.rpc('super_admin_exists')).data === true;
+      if (!exists && email === CFG.bootstrapEmail) {
+        const r = await sb.rpc('claim_bootstrap_super_admin');
+        staff = !r.error;
+      } else {
+        const r = await sb.rpc('accept_staff_invite');
+        staff = !r.error;
+      }
+    }
+    if (staff) { location.replace('/admin/dashboard.html'); return; }
+    await sb.auth.signOut();
+    show('login');
+    msg(msgId || 'login-msg', 'Tài khoản ' + u.email + ' chưa được cấp quyền quản trị. Liên hệ quản trị viên để được mời.');
+  }
+
+  $('f-login').addEventListener('submit', async function (e) {
+    e.preventDefault(); msg('login-msg', '');
+    const email = $('l-email').value.trim(), pass = $('l-pass').value;
+    if (!email || !pass) { msg('login-msg', 'Nhập email và mật khẩu.'); return; }
+    const btn = $('l-submit'); busy(btn, true, 'Đang đăng nhập…');
+    const r = await sb.auth.signInWithPassword({ email: email, password: pass });
+    if (r.error) { busy(btn, false, 'Đăng nhập'); msg('login-msg', viErr(r.error)); return; }
+    await routeAfterLogin('login-msg');
+    busy(btn, false, 'Đăng nhập');
+  });
+
+  $('f-signup').addEventListener('submit', async function (e) {
+    e.preventDefault(); msg('signup-msg', '');
+    const email = $('s-email').value.trim(), p1 = $('s-pass').value, p2 = $('s-pass2').value;
+    if (!email) { msg('signup-msg', 'Nhập email.'); return; }
+    if (p1.length < 8) { msg('signup-msg', 'Mật khẩu cần ít nhất 8 ký tự.'); return; }
+    if (p1 !== p2) { msg('signup-msg', 'Hai mật khẩu chưa khớp.'); return; }
+    const btn = $('s-submit'); busy(btn, true, 'Đang tạo…');
+    const r = await sb.auth.signUp({ email: email, password: p1, options: { emailRedirectTo: location.origin + '/admin/' } });
+    busy(btn, false, 'Tạo tài khoản');
+    if (r.error) { msg('signup-msg', viErr(r.error)); return; }
+    if (r.data.user && Array.isArray(r.data.user.identities) && r.data.user.identities.length === 0) { msg('signup-msg', 'Email này đã có tài khoản. Hãy đăng nhập, hoặc dùng "Quên mật khẩu".'); return; }
+    if (r.data.session) { await routeAfterLogin('signup-msg'); return; }
+    msg('signup-msg', 'Đã tạo tài khoản. Mở email ' + email + ' và bấm đường dẫn xác nhận, sau đó quay lại đăng nhập.', 'ok');
+  });
+
+  $('f-reset').addEventListener('submit', async function (e) {
+    e.preventDefault(); msg('reset-msg', '');
+    const email = $('r-email').value.trim();
+    if (!email) { msg('reset-msg', 'Nhập email.'); return; }
+    const btn = $('r-submit'); busy(btn, true, 'Đang gửi…');
+    const r = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/admin/' });
+    busy(btn, false, 'Gửi đường dẫn');
+    if (r.error) { msg('reset-msg', viErr(r.error)); return; }
+    msg('reset-msg', 'Nếu email có tài khoản, đường dẫn đặt lại mật khẩu đã được gửi. Kiểm tra cả hộp thư rác.', 'ok');
+  });
+
+  $('f-update').addEventListener('submit', async function (e) {
+    e.preventDefault(); msg('update-msg', '');
+    const p = $('u-pass').value;
+    if (p.length < 8) { msg('update-msg', 'Mật khẩu cần ít nhất 8 ký tự.'); return; }
+    const btn = $('u-submit'); busy(btn, true, 'Đang lưu…');
+    const r = await sb.auth.updateUser({ password: p });
+    if (!r.error) { const uu = (await sb.auth.getUser()).data.user; if (uu) $('u-user').value = uu.email; }
+    busy(btn, false, 'Lưu mật khẩu');
+    if (r.error) { msg('update-msg', viErr(r.error)); return; }
+    await routeAfterLogin('update-msg');
+  });
+
+  let recovering = false;
+  sb.auth.onAuthStateChange(function (event) {
+    if (event === 'PASSWORD_RECOVERY') { recovering = true; show('update'); }
+  });
+  (async function init() {
+    const hint = await sb.rpc('super_admin_exists');
+    if (hint.data === false) {
+      $('signup-hint').textContent = 'Hệ thống chưa có quản trị viên. Chủ doanh nghiệp tạo tài khoản bằng email ' + CFG.bootstrapEmail + ' để nhận quyền quản trị cao nhất.';
+    }
+    const s = (await sb.auth.getSession()).data.session;
+    if (hashErr) { msg('login-msg', /expired|invalid/i.test(hashErr) ? 'Đường dẫn trong email đã hết hạn hoặc không hợp lệ. Hãy yêu cầu gửi lại.' : hashErr); history.replaceState(null, '', location.pathname); }
+    if (isRecovery) { show('update'); return; }
+    if (s && !recovering) await routeAfterLogin('login-msg');
+  })();
+
+  /* nền hạt nhẹ */
+  const cv = $('bg'); if (!cv || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const ctx = cv.getContext('2d'); let W, H, pts = [];
+  function size() { const r = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); W = r.width; H = r.height; cv.width = W * d; cv.height = H * d; ctx.setTransform(d, 0, 0, d, 0, 0);
+    pts = []; for (let i = 0; i < 90; i++) pts.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .25, vy: (Math.random() - .5) * .25 }); }
+  size(); addEventListener('resize', size);
+  (function tick() {
+    ctx.clearRect(0, 0, W, H);
+    for (const p of pts) { p.x = (p.x + p.vx + W) % W; p.y = (p.y + p.vy + H) % H; }
+    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+      const a = pts[i], b = pts[j], dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy;
+      if (d2 < 12000) { ctx.strokeStyle = 'rgba(111,155,255,' + (0.18 * (1 - d2 / 12000)).toFixed(3) + ')'; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+    }
+    for (const p of pts) { ctx.fillStyle = 'rgba(143,176,255,.7)'; ctx.fillRect(p.x, p.y, 1.6, 1.6); }
+    requestAnimationFrame(tick);
+  })();
+})();
+</script>
+</body>
+</html>
