@@ -664,11 +664,20 @@ const BIZTECK_LINKS = {
     spin += ((anyOpen ? 0 : 1) - spin) * .08;
     orbT += dt * .00011 * spin;
     const small = W < 600, gy = H * (small ? .8 : .72);
-    const rx = small ? Math.max(90, W / 2 - 85) : Math.min(W * .36, 540), ry = rx * (small ? .34 : .24);
+    const narrow = W < 760;
+    const rx = narrow ? Math.max(90, W / 2 - 85) : Math.min(W * .36, 540);
+    let ry = rx * (narrow ? .34 : .24);
     let cy = gy - 300 * S;
-    if (small && heroCopy) {
-      const hr = cv.getBoundingClientRect(), cb = heroCopy.getBoundingClientRect().bottom - hr.top;
-      cy = Math.max(cy, cb + ry + 50);
+    if (heroCopy) {
+      /* keep the whole orbit inside the free band above or below the headline block */
+      const hr = cv.getBoundingClientRect(), cr = heroCopy.getBoundingClientRect();
+      const ct = cr.top - hr.top, cbm = cr.bottom - hr.top, half = narrow ? 30 : 36;
+      let top, bot;
+      if (ct > H * .35) { top = 88 + half; bot = ct - 16 - half; } else { top = cbm + 16 + half; bot = H - 40 - half; }
+      if (bot > top) {
+        ry = Math.min(ry, (bot - top) / 2);
+        cy = Math.min(Math.max(cy, top + ry), bot - ry);
+      }
     }
     const cx = W / 2, n = vis.length, ease = reduce ? 1 : .15;
     vis.forEach(function (o, i) {
