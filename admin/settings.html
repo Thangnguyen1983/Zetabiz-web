@@ -115,7 +115,7 @@ BZ.boot(async function (ctx) {
   async function renderCompany(panel) {
     panel.textContent = ''; panel.appendChild(loadingNode());
     let row;
-    try { row = await loadSetting('biztech_company'); }
+    try { row = await loadSetting('zetabiz_company'); }
     catch (e) { panel.textContent = ''; panel.appendChild(errNode(e, function () { renderCompany(panel); })); return; }
     const old = (row && row.value && typeof row.value === 'object') ? row.value : {};
     const ro = !ctx.can.admin;
@@ -158,10 +158,10 @@ BZ.boot(async function (ctx) {
       if (v.tax_code && !/^[0-9]{10}(-[0-9]{3})?$/.test(v.tax_code)) { msg.className = 'msg err'; msg.textContent = 'Mã số thuế gồm 10 chữ số (hoặc 10 số - 3 số cho chi nhánh).'; msg.hidden = false; f.tax_code.focus(); return; }
       save.disabled = true; save.textContent = 'Đang lưu…';
       try {
-        const cur = await loadSetting('biztech_company');
+        const cur = await loadSetting('zetabiz_company');
         const base = (cur && cur.value && typeof cur.value === 'object') ? cur.value : {};
         const value = Object.assign({}, base, v);
-        const r = await sb.from('settings').upsert({ key: 'biztech_company', value: value, is_public: true }, { onConflict: 'key' });
+        const r = await sb.from('settings').upsert({ key: 'zetabiz_company', value: value, is_public: true }, { onConflict: 'key' });
         if (r.error) throw r.error;
         BZ.toast('Đã lưu thông tin doanh nghiệp.', 'ok');
       } catch (err) { msg.className = 'msg err'; msg.textContent = BZ.errText(err); msg.hidden = false; }

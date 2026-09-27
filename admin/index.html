@@ -134,7 +134,7 @@
   const HASH = new URLSearchParams(location.hash.slice(1));
   const isRecovery = HASH.get('type') === 'recovery';
   const hashErr = HASH.get('error_description');
-  const sb = window.bizSb, CFG = window.BIZTECK_ADMIN;
+  const sb = window.zbSb, CFG = window.ZETABIZ_ADMIN;
   const forms = { login: 'f-login', signup: 'f-signup', reset: 'f-reset', update: 'f-update' };
   const $ = function (id) { return document.getElementById(id); };
   function show(name) {

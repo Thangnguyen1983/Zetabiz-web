@@ -1,7 +1,7 @@
-/* Điền thông tin doanh nghiệp từ Cài đặt › Doanh nghiệp (settings 'biztech_company').
+/* Điền thông tin doanh nghiệp từ Cài đặt › Doanh nghiệp (settings 'zetabiz_company').
    Trường trống giữ nguyên nội dung mặc định trong trang. */
 (function () {
-  var URL = 'https://zuucoqfylagcfwnhomet.supabase.co/rest/v1/settings?key=eq.biztech_company&select=value';
+  var URL = 'https://zuucoqfylagcfwnhomet.supabase.co/rest/v1/settings?key=eq.zetabiz_company&select=value';
   var KEY = 'sb_publishable_LVQhPQFXraB7C_1i0VtFlw_WndNHxAq';
   function apply(v) {
     if (!v || typeof v !== 'object') return;

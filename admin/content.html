@@ -39,8 +39,8 @@
 <script>
 BZ.boot(async function (ctx) {
   const h = BZ.h, sb = ctx.sb, main = ctx.main;
-  const KEY = 'biztech_site';
-  const BUCKET = 'biztech-public';
+  const KEY = 'zetabiz_site';
+  const BUCKET = 'zetabiz-public';
   const ro = !ctx.can.admin;
   /* https://, http:// hoặc / ; chặn //host, /\host, ký tự điều khiển/khoảng trắng (giống bzSafeLink ở index.html) */
   const LINK_RE = /^(?:https?:\/\/[^\/\\\u0000- \u007F]|\/(?![\/\\]))[^\u0000- \u007F]*$/i;

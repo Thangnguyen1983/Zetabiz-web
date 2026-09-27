@@ -38,6 +38,28 @@
   ],
   "redirects": [
     {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "biztech-web.vercel.app"
+        }
+      ],
+      "destination": "https://zetabiz.vercel.app/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "biztech-web-mhtbiz.vercel.app"
+        }
+      ],
+      "destination": "https://zetabiz.vercel.app/:path*",
+      "permanent": true
+    },
+    {
       "source": "/admin",
       "destination": "/admin/",
       "permanent": true

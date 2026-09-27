@@ -581,7 +581,7 @@ html.lead-open{overflow:hidden}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 /* ===== CẤU HÌNH: điền đường dẫn trang con của từng sản phẩm ===== */
-const BIZTECK_LINKS = {
+const ZETABIZ_LINKS = {
   autopro: '#',     // Zetabiz AutoPro – Garage ô tô
   skyagent: '#',    // Zetabiz SkyAgent – Đại lý vé máy bay
   spacare: '#',     // Zetabiz SpaCare – Spa & thẩm mỹ
@@ -591,7 +591,7 @@ const BIZTECK_LINKS = {
   terms: '/dieu-khoan/'   // Điều khoản sử dụng
 };
 /* ================================================================ */
-/* Bản đồ link dùng chung, được cập nhật trực tiếp từ settings 'biztech_site' (xem script CMS cuối trang).
+/* Bản đồ link dùng chung, được cập nhật trực tiếp từ settings 'zetabiz_site' (xem script CMS cuối trang).
    Chỉ chấp nhận link bắt đầu bằng https://, http:// hoặc / – trả về '' nếu không hợp lệ.
    Chặn //host và /\host (trình duyệt coi là link sang tên miền khác) và ký tự điều khiển/khoảng trắng. */
 function bzSafeLink(u) {
@@ -601,7 +601,7 @@ function bzSafeLink(u) {
 }
 function bzApplyLinks() {
   document.querySelectorAll('[data-link]').forEach(function (a) {
-    const url = bzSafeLink(BIZTECK_LINKS[a.dataset.link]);
+    const url = bzSafeLink(ZETABIZ_LINKS[a.dataset.link]);
     a.setAttribute('href', url || '#');
     if (/^https?:\/\//i.test(url)) { a.target = '_blank'; a.rel = 'noopener'; }
     else { a.removeAttribute('target'); a.removeAttribute('rel'); }
@@ -869,7 +869,7 @@ function bzApplyLinks() {
     company: document.getElementById('lf-company'), size: document.getElementById('lf-size'), interest: document.getElementById('lf-interest'),
     need: document.getElementById('lf-need'), hp: document.getElementById('lf-website'), consent: document.getElementById('lf-consent')
   };
-  var links = (typeof BIZTECK_LINKS !== 'undefined') ? BIZTECK_LINKS : {};
+  var links = (typeof ZETABIZ_LINKS !== 'undefined') ? ZETABIZ_LINKS : {};
   var sb = null, lastFocus = null, busy = false;
   var native = typeof dlg.showModal === 'function';
 
@@ -979,14 +979,14 @@ function bzApplyLinks() {
 })();
 </script>
 <script>
-/* ===== Nội dung trang từ Supabase settings 'biztech_site' =====
+/* ===== Nội dung trang từ Supabase settings 'zetabiz_site' =====
    Nội dung HTML ở trên là bản mặc định (fallback). Áp bản cache (localStorage) ngay, rồi áp bản mới khi tải xong.
    Chỉ dùng textContent / createElement – không innerHTML với dữ liệu. */
 (function () {
   'use strict';
   var SUPABASE_URL = 'https://zuucoqfylagcfwnhomet.supabase.co';
   var SUPABASE_KEY = 'sb_publishable_LVQhPQFXraB7C_1i0VtFlw_WndNHxAq';
-  var CACHE_KEY = 'bz_site_v1';
+  var CACHE_KEY = 'zb_site_v1';
   var PROD_KEYS = ['autopro', 'skyagent', 'spacare', 'tradehub', 'factoryone'];
 
   function str(v) { return typeof v === 'string' && v.trim() ? v.trim() : ''; }
@@ -1045,7 +1045,7 @@ function bzApplyLinks() {
     D.contact.email = bits[1] || 'info@mhtbiz.com';
   }
   var DEF_LINKS = {};
-  if (typeof BIZTECK_LINKS !== 'undefined') Object.keys(BIZTECK_LINKS).forEach(function (k) { DEF_LINKS[k] = BIZTECK_LINKS[k]; });
+  if (typeof ZETABIZ_LINKS !== 'undefined') Object.keys(ZETABIZ_LINKS).forEach(function (k) { DEF_LINKS[k] = ZETABIZ_LINKS[k]; });
   var logoA = qs('header .logo'), logoSvg = logoA && qs('.logo-mark', logoA), logoImg = null;
 
   /* ---------- áp dữ liệu ---------- */
@@ -1102,7 +1102,7 @@ function bzApplyLinks() {
         o.el.hidden = hide;
       }
       /* link sản phẩm: cập nhật bản đồ dùng chung, handler click đọc lúc click */
-      if (typeof BIZTECK_LINKS !== 'undefined') BIZTECK_LINKS[k] = linkFn(p.link) || DEF_LINKS[k] || '#';
+      if (typeof ZETABIZ_LINKS !== 'undefined') ZETABIZ_LINKS[k] = linkFn(p.link) || DEF_LINKS[k] || '#';
     });
   }
 
@@ -1139,8 +1139,8 @@ function bzApplyLinks() {
 
   function applyLinks(l) {
     l = obj(l);
-    if (typeof BIZTECK_LINKS === 'undefined') return;
-    ['privacy', 'terms'].forEach(function (k) { BIZTECK_LINKS[k] = linkFn(l[k]) || DEF_LINKS[k] || '#'; });
+    if (typeof ZETABIZ_LINKS === 'undefined') return;
+    ['privacy', 'terms'].forEach(function (k) { ZETABIZ_LINKS[k] = linkFn(l[k]) || DEF_LINKS[k] || '#'; });
   }
 
   function applyLogo(u) {
@@ -1186,7 +1186,7 @@ function bzApplyLinks() {
   if (typeof fetch !== 'function') return;
   var ctl = typeof AbortController === 'function' ? new AbortController() : null;
   var timer = ctl ? setTimeout(function () { ctl.abort(); }, 5000) : null;
-  fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.biztech_site&select=value', {
+  fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.zetabiz_site&select=value', {
     headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, Accept: 'application/json' },
     signal: ctl ? ctl.signal : undefined, cache: 'no-store'
   }).then(function (r) { return r.ok ? r.json() : null; })

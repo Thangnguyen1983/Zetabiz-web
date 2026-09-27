@@ -5,7 +5,7 @@
 */
 (function () {
   'use strict';
-  const sb = window.bizSb;
+  const sb = window.zbSb;
 
   /* ---------- DOM helper: không bao giờ dùng innerHTML với dữ liệu ---------- */
   function h(tag, attrs) {
