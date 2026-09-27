@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Nội dung trang – Quản trị BIZTECK</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231D4ED8'/%3E%3Ccircle cx='16' cy='12' r='5' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M16 17v9M10 24c2 2 10 2 12 0' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>
+.panel{display:flex;flex-direction:column;gap:16px}
+.field input:disabled,.field textarea:disabled{background:#F4F6FA;color:var(--text-2)}
+.field input[aria-invalid="true"],.field textarea[aria-invalid="true"]{border-color:var(--danger)}
+.ferr{color:var(--danger);font-size:12px}
+.savebar{position:sticky;top:0;z-index:20;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 20px -14px rgba(11,27,63,.35)}
+.savebar .grow{flex:1;min-width:160px}
+.feat3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.vis{display:inline-flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;min-height:36px}
+.vis input{width:18px;height:18px}
+.card.off{opacity:.72}
+.link-row{display:flex;gap:10px;align-items:flex-end}
+.link-row .field{flex:1;min-width:0}
+.h1-prev{background:#0B1B3F;color:#fff;border-radius:14px;padding:20px 22px;font-size:clamp(24px,3.4vw,34px);line-height:1.08;font-weight:600;letter-spacing:-.02em;word-break:break-word}
+.h1-prev .hl{background:linear-gradient(90deg,#8FB0FF,#F97316);-webkit-background-clip:text;background-clip:text;color:transparent}
+.logo-box{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.logo-prev{min-width:160px;min-height:72px;padding:12px 16px;border-radius:12px;background:#0B1B3F;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;gap:10px}
+.logo-prev img{max-height:48px;max-width:220px;display:block}
+@media (max-width:820px){.feat3{grid-template-columns:1fr}.link-row{flex-direction:column;align-items:stretch}}
+</style>
+</head>
+<body data-page="content">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, sb = ctx.sb, main = ctx.main;
+  const KEY = 'biztech_site';
+  const BUCKET = 'biztech-public';
+  const ro = !ctx.can.admin;
+  /* https://, http:// hoặc / ; chặn //host, /\host, ký tự điều khiển/khoảng trắng (giống bzSafeLink ở index.html) */
+  const LINK_RE = /^(?:https?:\/\/[^\/\\\u0000- \u007F]|\/(?![\/\\]))[^\u0000- \u007F]*$/i;
+  const LOGO_RE = /^https:\/\/[^\s"'<>]+$/i;
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const PRODUCT_KEYS = ['autopro', 'skyagent', 'spacare', 'tradehub', 'factoryone'];
+  const MAX_FAQ = 12;
+
+  /* Nội dung mặc định = nội dung đang có trên trang chủ (index.html) */
+  const DEFAULTS = {
+    logo_url: '',
+    hero: {
+      title_1: 'Một nền tảng.', title_2: 'Vận hành', title_hl: 'mọi ngành.',
+      lead: 'BIZTECK là nền tảng phát triển các ứng dụng SaaS trên web, tích hợp AI, cho garage ô tô, đại lý vé máy bay, spa, thương mại và sản xuất. Dùng ngay trên trình duyệt, dữ liệu liên thông trên một nền tảng.',
+      cta_primary: 'Chọn giải pháp ngành', cta_secondary: 'Xem AI làm việc'
+    },
+    products: [
+      { key: 'autopro', industry: 'GARAGE Ô TÔ', name: 'BIZTECK AutoPro', desc: 'Quản lý toàn diện xưởng dịch vụ từ tiếp nhận xe đến thanh toán.', features: ['Lệnh sửa chữa, lịch sử xe', 'Kho phụ tùng, chia việc thợ', 'AI nhắc hạn bảo dưỡng'], link: '', visible: true },
+      { key: 'skyagent', industry: 'ĐẠI LÝ VÉ MÁY BAY', name: 'BIZTECK SkyAgent', desc: 'Quản lý booking, đại lý cấp dưới và công nợ tập trung một nơi.', features: ['Booking, xuất vé, đối soát', 'Công nợ, hoa hồng đại lý', 'AI tư vấn giá cho khách'], link: '', visible: true },
+      { key: 'spacare', industry: 'SPA & THẨM MỸ', name: 'BIZTECK SpaCare', desc: 'Giữ chân khách với lịch hẹn, liệu trình và chăm sóc tự động.', features: ['Đặt lịch, thẻ liệu trình', 'Hoa hồng kỹ thuật viên', 'AI nhắc khách quay lại'], link: '', visible: true },
+      { key: 'tradehub', industry: 'THƯƠNG MẠI', name: 'BIZTECK TradeHub', desc: 'Bán tại cửa hàng và online, tồn kho luôn khớp giữa các kênh.', features: ['Bán hàng đa kênh', 'Kho, công nợ khách và NCC', 'AI gợi ý nhập hàng'], link: '', visible: true },
+      { key: 'factoryone', industry: 'SẢN XUẤT & THƯƠNG MẠI', name: 'BIZTECK FactoryOne', desc: 'Kiểm soát nguyên liệu, lệnh sản xuất và giá thành từng sản phẩm.', features: ['Định mức, lệnh sản xuất', 'Tính giá thành thực tế', 'AI cảnh báo thiếu nguyên liệu'], link: '', visible: true }
+    ],
+    faq: [
+      { q: 'Tôi có cần cài đặt phần mềm không?', a: 'Không. Mọi ứng dụng BIZTECK chạy trên nền tảng web, bạn đăng nhập và dùng ngay trên trình duyệt máy tính hoặc điện thoại.' },
+      { q: 'Dữ liệu cũ từ Excel có chuyển sang được không?', a: '[Mô tả cách hỗ trợ chuyển dữ liệu và thời gian thực hiện.]' },
+      { q: 'Dữ liệu của tôi có an toàn không?', a: '[Mô tả nơi lưu trữ, sao lưu và bảo mật dữ liệu.]' },
+      { q: 'Tôi dùng nhiều ngành cùng lúc được không?', a: '[Mô tả chính sách gộp gói hoặc ưu đãi khi dùng nhiều giải pháp.]' }
+    ],
+    links: { privacy: '', terms: '' },
+    contact: { company: 'CÔNG TY MHT BUSINESS SOLUTIONS', address: '95 Nguyễn Thị Minh Khai, Khối 3 Lê Mao, Phường Thành Vinh, Nghệ An', phone: '0918 566 177', email: 'info@mhtbiz.com' }
+  };
+
+  /* ---------- Tiện ích ---------- */
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function str(v, fb) { return typeof v === 'string' ? v : (fb == null ? '' : fb); }
+  function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+
+  /* Chuẩn hóa dữ liệu đã lưu về đúng cấu trúc SPEC2 (5 sản phẩm cố định, 3 tính năng, ≤12 hỏi đáp) */
+  function normalize(raw) {
+    const v = isObj(raw) ? raw : {};
+    const d = clone(DEFAULTS);
+    const out = { logo_url: LOGO_RE.test(str(v.logo_url).trim()) ? str(v.logo_url).trim() : '', hero: {}, products: [], faq: [], links: {}, contact: {} };
+    const hero = isObj(v.hero) ? v.hero : {};
+    Object.keys(d.hero).forEach(function (k) { out.hero[k] = str(hero[k], d.hero[k]); });
+    const saved = Array.isArray(v.products) ? v.products.filter(function (p) { return isObj(p) && PRODUCT_KEYS.indexOf(p.key) >= 0; }) : [];
+    const order = [];
+    saved.forEach(function (p) { if (order.indexOf(p.key) < 0) order.push(p.key); });
+    PRODUCT_KEYS.forEach(function (k) { if (order.indexOf(k) < 0) order.push(k); });
+    order.forEach(function (k) {
+      const def = d.products.filter(function (p) { return p.key === k; })[0];
+      const p = saved.filter(function (x) { return x.key === k; })[0] || {};
+      const feats = Array.isArray(p.features) ? p.features : def.features;
+      out.products.push({
+        key: k, industry: str(p.industry, def.industry), name: str(p.name, def.name), desc: str(p.desc, def.desc),
+        features: [0, 1, 2].map(function (i) { return str(feats[i]); }),
+        link: str(p.link), visible: p.visible === undefined ? true : p.visible !== false
+      });
+    });
+    out.faq = (Array.isArray(v.faq) ? v.faq : d.faq).filter(isObj).slice(0, MAX_FAQ).map(function (f) { return { q: str(f.q), a: str(f.a) }; });
+    const links = isObj(v.links) ? v.links : {};
+    out.links = { privacy: str(links.privacy), terms: str(links.terms) };
+    const c = isObj(v.contact) ? v.contact : {};
+    Object.keys(d.contact).forEach(function (k) { out.contact[k] = str(c[k], d.contact[k]); });
+    return out;
+  }
+  function trimAll(o) {
+    if (typeof o === 'string') return o.trim();
+    if (Array.isArray(o)) return o.map(trimAll);
+    if (isObj(o)) { const r = {}; Object.keys(o).forEach(function (k) { r[k] = trimAll(o[k]); }); return r; }
+    return o;
+  }
+
+  /* ---------- Tải dữ liệu ---------- */
+  main.appendChild(BZ.pageHead('Nội dung trang', 'Sửa sản phẩm, phần đầu trang, hỏi đáp, logo và liên hệ trên trang chủ BIZTECK',
+    h('a', { class: 'btn btn-ghost', href: '/', target: '_blank', rel: 'noopener' }, 'Xem trang chủ')));
+  const body = h('div', { class: 'panel' }, h('p', { class: 'muted', role: 'status' }, 'Đang tải…'));
+  main.appendChild(body);
+
+  let rawValue = {}, exists = false, state, snapshot;
+  async function load() {
+    body.textContent = ''; body.appendChild(h('p', { class: 'muted', role: 'status' }, 'Đang tải…'));
+    const r = await sb.from('settings').select('value').eq('key', KEY).maybeSingle();
+    if (r.error) {
+      body.textContent = '';
+      body.appendChild(h('div', { class: 'msg err', role: 'alert' }, BZ.errText(r.error), ' ',
+        h('button', { type: 'button', class: 'link-btn', onclick: load }, 'Thử lại')));
+      return;
+    }
+    exists = !!r.data;
+    rawValue = (r.data && isObj(r.data.value)) ? r.data.value : {};
+    state = exists ? normalize(rawValue) : clone(DEFAULTS);
+    snapshot = JSON.stringify(state);
+    build();
+  }
+
+  /* ---------- Trạng thái thay đổi ---------- */
+  const dirtyChip = h('span', { class: 'chip warn', hidden: true }, 'Có thay đổi chưa lưu');
+  const cleanNote = h('span', { class: 'muted', style: { fontSize: '13px' } }, 'Đã lưu mọi thay đổi');
+  const saveBtn = h('button', { type: 'button', class: 'btn btn-accent' }, 'Lưu thay đổi');
+  const viewLink = h('a', { href: '/', target: '_blank', rel: 'noopener', hidden: true, style: { fontSize: '13px', marginLeft: '10px' } }, 'Xem trang chủ');
+  function isDirty() { return !ro && state && JSON.stringify(state) !== snapshot; }
+  function refreshDirty() { const d = isDirty(); dirtyChip.hidden = !d; cleanNote.hidden = d; }
+  function changed() { refreshDirty(); }
+  window.addEventListener('beforeunload', function (e) { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+  /* ---------- Lỗi theo ô ---------- */
+  function collectErrors() {
+    const errs = [];
+    function add(tab, id, text) { errs.push({ tab: tab, id: id, text: text }); }
+    function link(tab, id, v) { if (v.trim() && !LINK_RE.test(v.trim())) add(tab, id, 'Link phải bắt đầu bằng https://, http:// hoặc một dấu / và không có khoảng trắng.'); }
+    state.products.forEach(function (p) {
+      if (!p.name.trim()) add('products', 'p-' + p.key + '-name', 'Vui lòng nhập tên sản phẩm.');
+      link('products', 'p-' + p.key + '-link', p.link);
+    });
+    ['title_1', 'title_2', 'title_hl'].forEach(function (k) { if (!state.hero[k].trim()) add('hero', 'h-' + k, 'Không được để trống.'); });
+    state.faq.forEach(function (f, i) {
+      if (!f.q.trim()) add('faq', 'q-' + i + '-q', 'Vui lòng nhập câu hỏi.');
+      if (!f.a.trim()) add('faq', 'q-' + i + '-a', 'Vui lòng nhập câu trả lời.');
+    });
+    link('brand', 'b-privacy', state.links.privacy);
+    link('brand', 'b-terms', state.links.terms);
+    if (state.contact.email.trim() && !EMAIL_RE.test(state.contact.email.trim())) add('brand', 'b-email', 'Email chưa đúng định dạng.');
+    return errs;
+  }
+  function setErr(id, text) {
+    const el = document.getElementById(id), e = document.getElementById(id + '-err');
+    if (!el || !e) return;
+    e.textContent = text || ''; e.hidden = !text;
+    if (text) el.setAttribute('aria-invalid', 'true'); else el.removeAttribute('aria-invalid');
+  }
+  function refreshErr(id) {
+    const hit = collectErrors().filter(function (x) { return x.id === id; })[0];
+    setErr(id, hit ? hit.text : '');
+  }
+
+  /* Ô nhập gắn với state: obj[prop] */
+  function bound(tag, obj, prop, id, attrs, onInput) {
+    const el = h(tag, Object.assign({ id: id, disabled: ro }, tag === 'input' ? { type: 'text' } : {}, attrs || {}));
+    el.value = obj[prop] == null ? '' : String(obj[prop]);
+    el.addEventListener('input', function () {
+      obj[prop] = el.value; changed();
+      if (el.getAttribute('aria-invalid') === 'true') refreshErr(id);
+      if (onInput) onInput();
+    });
+    el.addEventListener('blur', function () { refreshErr(id); });
+    return el;
+  }
+  function fld(label, el, hint, extra) {
+    const f = BZ.field(label, el, hint);
+    const err = h('small', { class: 'ferr', id: el.id + '-err', role: 'alert', hidden: true });
+    el.setAttribute('aria-describedby', el.id + '-err');
+    f.appendChild(err);
+    if (extra) f.classList.add(extra);
+    return f;
+  }
+  function safeHref(v) { v = (v || '').trim(); return v && LINK_RE.test(v) ? v : ''; }
+
+  /* ---------- Khung tab ---------- */
+  const TABS = [
+    { key: 'products', label: 'Sản phẩm', render: renderProducts },
+    { key: 'hero', label: 'Phần đầu trang', render: renderHero },
+    { key: 'faq', label: 'Hỏi đáp', render: renderFaq },
+    { key: 'brand', label: 'Logo & liên hệ', render: renderBrand }
+  ];
+  let panels = {}, current = 'products';
+
+  function build() {
+    body.textContent = '';
+    if (ro) body.appendChild(h('div', { class: 'msg info' }, 'Chỉ quản trị viên được sửa nội dung trang.'));
+    else {
+      body.appendChild(h('div', { class: 'savebar' },
+        h('div', { class: 'grow' }, dirtyChip, cleanNote, viewLink), saveBtn));
+      if (!exists) body.appendChild(h('div', { class: 'msg info' }, 'Chưa có nội dung đã lưu. Trang đang hiện nội dung mặc định của trang chủ. Sửa rồi bấm "Lưu thay đổi" để áp dụng.'));
+    }
+    const tabBar = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Nhóm nội dung' });
+    panels = {};
+    TABS.forEach(function (t, i) {
+      const b = h('button', { type: 'button', role: 'tab', id: 'tab-' + t.key, 'aria-controls': 'pn-' + t.key, 'aria-selected': 'false', tabindex: '-1' }, t.label);
+      b.addEventListener('click', function () { select(t.key, true); });
+      b.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        const n = TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length];
+        select(n.key, true); document.getElementById('tab-' + n.key).focus();
+      });
+      tabBar.appendChild(b);
+      panels[t.key] = h('section', { class: 'panel', role: 'tabpanel', id: 'pn-' + t.key, 'aria-labelledby': 'tab-' + t.key, hidden: true });
+    });
+    body.appendChild(tabBar);
+    TABS.forEach(function (t) { body.appendChild(panels[t.key]); t.render(panels[t.key]); });
+    refreshDirty();
+    select(current, false);
+  }
+  function select(key, push) {
+    if (!panels[key]) key = 'products';
+    current = key;
+    TABS.forEach(function (t) {
+      const on = t.key === key;
+      const b = document.getElementById('tab-' + t.key);
+      b.setAttribute('aria-selected', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1;
+      panels[t.key].hidden = !on;
+    });
+    if (push) history.replaceState(null, '', '#' + key);
+  }
+  window.addEventListener('hashchange', function () { if (panels.products) select(location.hash.slice(1), false); });
+  current = location.hash.slice(1) || 'products';
+
+  function moveBtns(onMove, i, len, what) {
+    if (ro) return null;
+    return [
+      h('button', { type: 'button', class: 'btn btn-ghost btn-sm', 'data-dir': 'up', 'aria-label': 'Đưa ' + what + ' lên', title: 'Đưa lên', disabled: i === 0, onclick: function () { onMove(i, -1); } }, '↑'),
+      h('button', { type: 'button', class: 'btn btn-ghost btn-sm', 'data-dir': 'down', 'aria-label': 'Đưa ' + what + ' xuống', title: 'Đưa xuống', disabled: i === len - 1, onclick: function () { onMove(i, 1); } }, '↓')
+    ];
+  }
+  function swap(arr, i, d) { const j = i + d; if (j < 0 || j >= arr.length) return false; const t = arr[i]; arr[i] = arr[j]; arr[j] = t; return true; }
+  function refocus(panel, idx, dir) {
+    const cards = panel.querySelectorAll('[data-idx]');
+    const c = cards[idx]; if (!c) return;
+    const b = c.querySelector('[data-dir="' + dir + '"]:not([disabled])') || c.querySelector('[data-dir]:not([disabled])');
+    if (b) b.focus();
+  }
+
+  /* ================= Sản phẩm ================= */
+  function renderProducts(panel) {
+    panel.textContent = '';
+    panel.appendChild(h('p', { class: 'muted', style: { fontSize: '13px' } }, 'Thứ tự ở đây là thứ tự hiển thị trên trang chủ. Tắt "Hiển thị" để ẩn sản phẩm.'));
+    const n = state.products.length;
+    state.products.forEach(function (p, i) {
+      const title = h('span', null, (i + 1) + '. ' + (p.name || p.key));
+      const openLink = h('a', { class: 'btn btn-ghost btn-sm', target: '_blank', rel: 'noopener' }, 'Mở thử');
+      function refreshLink() { const u = safeHref(p.link); openLink.hidden = !u; if (u) openLink.setAttribute('href', u); else openLink.removeAttribute('href'); }
+      const vis = h('input', { type: 'checkbox', disabled: ro });
+      vis.checked = p.visible !== false;
+      const card = h('article', { class: 'card' + (p.visible === false ? ' off' : ''), 'data-idx': String(i) });
+      vis.addEventListener('change', function () { p.visible = vis.checked; card.classList.toggle('off', !vis.checked); changed(); });
+      const link = bound('input', p, 'link', 'p-' + p.key + '-link', { type: 'url', maxlength: 500, inputmode: 'url', placeholder: 'https://… hoặc /trang-con' }, refreshLink);
+      card.append(
+        h('div', { class: 'card-h' },
+          h('h2', null, title),
+          h('div', { class: 'row-actions' },
+            h('label', { class: 'vis' }, vis, 'Hiển thị'),
+            moveBtns(function (idx, d) { if (swap(state.products, idx, d)) { changed(); renderProducts(panel); refocus(panel, idx + d, d < 0 ? 'up' : 'down'); } }, i, n, 'sản phẩm'))),
+        h('div', { class: 'form-grid' },
+          fld('Nhãn ngành', bound('input', p, 'industry', 'p-' + p.key + '-industry', { maxlength: 60, placeholder: 'VD: GARAGE Ô TÔ' })),
+          fld('Tên sản phẩm *', bound('input', p, 'name', 'p-' + p.key + '-name', { maxlength: 80, required: true }, function () { title.textContent = (i + 1) + '. ' + (p.name || p.key); })),
+          fld('Mô tả ngắn', bound('textarea', p, 'desc', 'p-' + p.key + '-desc', { maxlength: 300, rows: 2 }), 'Tối đa 300 ký tự', 'span2'),
+          h('div', { class: 'span2 field' },
+            h('span', { class: 'muted', style: { fontSize: '13px', fontWeight: '500' } }, '3 tính năng nổi bật'),
+            h('div', { class: 'feat3' }, [0, 1, 2].map(function (k) {
+              return bound('input', p.features, k, 'p-' + p.key + '-f' + k, { maxlength: 120, 'aria-label': 'Tính năng ' + (k + 1) + ' của ' + p.key });
+            }))),
+          h('div', { class: 'span2 link-row' },
+            fld('Link trang con', link, 'Để trống: nút sẽ mở form nhận tư vấn'),
+            openLink)
+        )
+      );
+      refreshLink();
+      panel.appendChild(card);
+    });
+  }
+
+  /* ================= Phần đầu trang ================= */
+  function renderHero(panel) {
+    panel.textContent = '';
+    const hr = state.hero;
+    const prev = h('div', { class: 'h1-prev', 'aria-live': 'polite' });
+    function paint() {
+      prev.textContent = '';
+      prev.append(hr.title_1, h('br'), hr.title_2, ' ', h('span', { class: 'hl' }, hr.title_hl));
+    }
+    paint();
+    panel.appendChild(h('div', { class: 'card' },
+      h('div', { class: 'card-h' }, h('h2', null, 'Tiêu đề lớn (H1)')),
+      h('div', { class: 'form-grid' },
+        fld('Dòng 1 *', bound('input', hr, 'title_1', 'h-title_1', { maxlength: 80, required: true }, paint)),
+        fld('Dòng 2 *', bound('input', hr, 'title_2', 'h-title_2', { maxlength: 80, required: true }, paint)),
+        fld('Chữ nổi bật (sau dòng 2) *', bound('input', hr, 'title_hl', 'h-title_hl', { maxlength: 80, required: true }, paint), 'Hiện màu nổi bật, cùng dòng với dòng 2', 'span2'),
+        h('div', { class: 'span2 field' }, h('span', { class: 'muted', style: { fontSize: '13px', fontWeight: '500' } }, 'Xem trước'), prev)
+      )));
+    panel.appendChild(h('div', { class: 'card' },
+      h('div', { class: 'card-h' }, h('h2', null, 'Đoạn giới thiệu & nút')),
+      h('div', { class: 'form-grid' },
+        fld('Đoạn giới thiệu', bound('textarea', hr, 'lead', 'h-lead', { maxlength: 600, rows: 4 }), 'Tối đa 600 ký tự', 'span2'),
+        fld('Nút chính', bound('input', hr, 'cta_primary', 'h-cta_primary', { maxlength: 40 }), 'Mở danh sách giải pháp ngành'),
+        fld('Nút phụ', bound('input', hr, 'cta_secondary', 'h-cta_secondary', { maxlength: 40 }), 'Kéo xuống phần quy trình')
+      )));
+  }
+
+  /* ================= Hỏi đáp ================= */
+  function renderFaq(panel) {
+    panel.textContent = '';
+    const n = state.faq.length;
+    const addBtn = ro ? null : h('button', { type: 'button', class: 'btn btn-primary', disabled: n >= MAX_FAQ, onclick: function () {
+      if (state.faq.length >= MAX_FAQ) return;
+      state.faq.push({ q: '', a: '' }); changed(); renderFaq(panel);
+      const el = document.getElementById('q-' + (state.faq.length - 1) + '-q'); if (el) el.focus();
+    } }, '+ Thêm câu hỏi');
+    panel.appendChild(h('div', { class: 'toolbar' },
+      h('span', { class: 'muted', style: { fontSize: '13px', flex: '1' } }, n + '/' + MAX_FAQ + ' câu hỏi. Câu đầu tiên được mở sẵn trên trang chủ.'), addBtn));
+    if (!n) { panel.appendChild(h('div', { class: 'card empty' }, 'Chưa có câu hỏi nào. Phần Hỏi đáp sẽ không có nội dung.')); return; }
+    state.faq.forEach(function (f, i) {
+      const del = ro ? null : h('button', { type: 'button', class: 'btn btn-ghost btn-sm', 'aria-label': 'Xóa câu hỏi ' + (i + 1), onclick: async function () {
+        const ok = await BZ.confirm('Xóa câu hỏi?', 'Câu hỏi "' + (f.q.trim() || 'chưa đặt tên') + '" sẽ bị xóa khỏi danh sách. Thay đổi chỉ áp dụng khi bạn bấm Lưu thay đổi.', 'Xóa', true);
+        if (!ok) return;
+        state.faq.splice(i, 1); changed(); renderFaq(panel);
+      } }, 'Xóa');
+      panel.appendChild(h('article', { class: 'card', 'data-idx': String(i) },
+        h('div', { class: 'card-h' }, h('h2', null, 'Câu ' + (i + 1)),
+          h('div', { class: 'row-actions' },
+            moveBtns(function (idx, d) { if (swap(state.faq, idx, d)) { changed(); renderFaq(panel); refocus(panel, idx + d, d < 0 ? 'up' : 'down'); } }, i, n, 'câu hỏi'),
+            del)),
+        h('div', { class: 'form-grid' },
+          fld('Câu hỏi *', bound('input', f, 'q', 'q-' + i + '-q', { maxlength: 200, required: true }), 'Tối đa 200 ký tự', 'span2'),
+          fld('Câu trả lời *', bound('textarea', f, 'a', 'q-' + i + '-a', { maxlength: 1000, rows: 3, required: true }), 'Tối đa 1000 ký tự', 'span2'))));
+    });
+  }
+
+  /* ================= Logo & liên hệ ================= */
+  const LOGO_TYPES = { 'image/png': 'png', 'image/svg+xml': 'svg', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+  function renderBrand(panel) {
+    panel.textContent = '';
+    const prevBox = h('div', { class: 'logo-prev' });
+    const logoNote = h('small', { class: 'muted' });
+    function paintLogo() {
+      prevBox.textContent = '';
+      const u = LOGO_RE.test(state.logo_url || '') ? state.logo_url : '';
+      if (u) {
+        const img = h('img', { alt: 'Logo đang dùng', src: u });
+        img.addEventListener('error', function () { prevBox.textContent = ''; prevBox.appendChild(h('span', { style: { fontWeight: '400', fontSize: '13px' } }, 'Không tải được ảnh logo')); });
+        prevBox.appendChild(img);
+        logoNote.textContent = 'Đang dùng logo đã tải lên.';
+      } else {
+        prevBox.append(BZ.svg('<circle cx="12" cy="8" r="5" stroke="#fff" stroke-width="1.6"/><path d="M12 13v8M7 19.5c1.6 1.6 8.4 1.6 10 0M4.5 15.5c3.3-1.6 11.7-1.6 15 0" stroke="#fff" stroke-width="1.6"/>', 28), 'BIZTECK');
+        logoNote.textContent = 'Đang dùng logo mặc định.';
+      }
+      if (resetBtn) resetBtn.hidden = !state.logo_url;
+    }
+    const upMsg = h('div', { class: 'msg', role: 'status', hidden: true });
+    const file = h('input', { type: 'file', accept: 'image/png,image/svg+xml,image/jpeg,image/webp', hidden: true });
+    const upBtn = ro ? null : h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: function () { file.click(); } }, 'Tải logo lên');
+    const resetBtn = ro ? null : h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () {
+      state.logo_url = ''; changed(); paintLogo();
+      upMsg.className = 'msg info'; upMsg.textContent = 'Đã chuyển về logo mặc định. Bấm "Lưu thay đổi" để áp dụng.'; upMsg.hidden = false;
+    } }, 'Dùng logo mặc định');
+    file.addEventListener('change', async function () {
+      const f = file.files && file.files[0];
+      file.value = '';
+      if (!f || ro) return;
+      upMsg.hidden = true;
+      const ext = LOGO_TYPES[f.type];
+      if (!ext) { upMsg.className = 'msg err'; upMsg.textContent = 'Chỉ nhận ảnh PNG, SVG, JPEG hoặc WEBP.'; upMsg.hidden = false; return; }
+      if (f.size > 1024 * 1024) { upMsg.className = 'msg err'; upMsg.textContent = 'Ảnh quá lớn. Dung lượng tối đa 1 MB.'; upMsg.hidden = false; return; }
+      upBtn.disabled = true; upBtn.textContent = 'Đang tải lên…';
+      try {
+        const path = 'logo-' + Date.now() + '.' + ext;
+        const r = await sb.storage.from(BUCKET).upload(path, f, { upsert: false, contentType: f.type });
+        if (r.error) throw r.error;
+        const url = sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+        state.logo_url = url; changed(); paintLogo();
+        upMsg.className = 'msg ok'; upMsg.textContent = 'Đã tải logo lên. Bấm "Lưu thay đổi" để áp dụng lên trang chủ.'; upMsg.hidden = false;
+      } catch (e) { upMsg.className = 'msg err'; upMsg.textContent = BZ.errText(e); upMsg.hidden = false; }
+      finally { upBtn.disabled = false; upBtn.textContent = 'Tải logo lên'; }
+    });
+    paintLogo();
+    panel.appendChild(h('div', { class: 'card' },
+      h('div', { class: 'card-h' }, h('h2', null, 'Logo')),
+      h('div', { class: 'logo-box' }, prevBox,
+        h('div', { class: 'field' }, logoNote,
+          h('small', { class: 'muted' }, 'PNG, SVG, JPEG hoặc WEBP, tối đa 1 MB. Nên dùng logo nền trong suốt, màu sáng.'),
+          ro ? null : h('div', { class: 'row-actions' }, upBtn, resetBtn), file)),
+      h('div', { style: { marginTop: '12px' } }, upMsg)));
+
+    const c = state.contact, l = state.links;
+    panel.appendChild(h('div', { class: 'card' },
+      h('div', { class: 'card-h' }, h('h2', null, 'Thông tin liên hệ (chân trang)')),
+      h('div', { class: 'form-grid' },
+        fld('Tên công ty', bound('input', c, 'company', 'b-company', { maxlength: 200, autocomplete: 'organization' }), null, 'span2'),
+        fld('Địa chỉ', bound('input', c, 'address', 'b-address', { maxlength: 300 }), null, 'span2'),
+        fld('Điện thoại', bound('input', c, 'phone', 'b-phone', { type: 'tel', maxlength: 30 })),
+        fld('Email', bound('input', c, 'email', 'b-email', { type: 'email', maxlength: 200 }))
+      )));
+    panel.appendChild(h('div', { class: 'card' },
+      h('div', { class: 'card-h' }, h('h2', null, 'Liên kết chính sách')),
+      h('div', { class: 'form-grid' },
+        fld('Chính sách bảo mật', bound('input', l, 'privacy', 'b-privacy', { type: 'url', maxlength: 500, inputmode: 'url', placeholder: 'https://… hoặc /chinh-sach' }), 'Để trống nếu chưa có'),
+        fld('Điều khoản sử dụng', bound('input', l, 'terms', 'b-terms', { type: 'url', maxlength: 500, inputmode: 'url', placeholder: 'https://… hoặc /dieu-khoan' }), 'Để trống nếu chưa có')
+      )));
+  }
+
+  /* ---------- Lưu ---------- */
+  saveBtn.addEventListener('click', async function () {
+    if (ro || !state) return;
+    document.querySelectorAll('.ferr').forEach(function (e) { e.hidden = true; e.textContent = ''; });
+    document.querySelectorAll('[aria-invalid="true"]').forEach(function (e) { e.removeAttribute('aria-invalid'); });
+    const errs = collectErrors();
+    if (errs.length) {
+      errs.forEach(function (x) { setErr(x.id, x.text); });
+      select(errs[0].tab, true);
+      const el = document.getElementById(errs[0].id); if (el) el.focus();
+      BZ.toast('Còn ' + errs.length + ' ô cần sửa trước khi lưu.', 'err');
+      return;
+    }
+    const clean = trimAll(state);
+    clean.products.forEach(function (p) { p.visible = p.visible !== false; });
+    saveBtn.disabled = true; saveBtn.textContent = 'Đang lưu…';
+    const sent = JSON.stringify(state);
+    try {
+      const value = Object.assign({}, rawValue, clean);
+      const r = await sb.from('settings').upsert({ key: KEY, value: value, is_public: true }, { onConflict: 'key' });
+      if (r.error) throw r.error;
+      rawValue = value; exists = true;
+      if (JSON.stringify(state) !== sent) {
+        /* người dùng sửa tiếp trong lúc đang lưu: giữ phần sửa, vẫn đánh dấu chưa lưu */
+        snapshot = JSON.stringify(clean); refreshDirty();
+      } else {
+        state = clean; snapshot = JSON.stringify(state);
+        build();
+      }
+      viewLink.hidden = false;
+      BZ.toast('Đã lưu. Trang chủ cập nhật ngay.', 'ok');
+    } catch (e) { BZ.toast(BZ.errText(e), 'err'); }
+    finally { saveBtn.disabled = false; saveBtn.textContent = 'Lưu thay đổi'; }
+  });
+
+  await load();
+});
+</script>
+</body>
+</html>

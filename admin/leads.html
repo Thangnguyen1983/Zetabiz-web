@@ -322,7 +322,7 @@ BZ.boot(async function (ctx) {
   async function loadPlans() {
     if (plansCache) return plansCache;
     const [pr, pp] = await Promise.all([
-      sb.from('products').select('id,name,code').order('name'),
+      sb.from('products').select('id,name,code').like('code', 'BZT-%').order('sort_order'),
       sb.from('product_plans').select('id,product_id,plan_code,name,billing_cycle,price_amount,sale_price_amount,price_display,is_active').eq('is_active', true).order('price_amount', { ascending: true, nullsFirst: false })
     ]);
     if (pr.error) throw pr.error;

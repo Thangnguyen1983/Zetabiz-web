@@ -41,6 +41,7 @@
     orders: ['t-violet', '<path d="M6 3h9l4 4v14H6z" fill="#fff"/><path d="M15 3v4h4z" fill="#fff" fill-opacity=".55"/><path d="M9 12h7M9 16h5" stroke="#7C3AED" stroke-width="1.8" stroke-linecap="round"/>'],
     subscriptions: ['t-green', '<path d="M12 3 20 7v10l-8 4-8-4V7z" fill="#fff" fill-opacity=".7"/><path d="M12 11 20 7l-8-4-8 4z" fill="#fff"/><path d="M12 11v10" stroke="#047857" stroke-width="1.6"/>'],
     payments: ['t-amber', '<rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#fff"/><rect x="2.5" y="8.5" width="19" height="3" fill="#B45309" fill-opacity=".55"/><rect x="5" y="14" width="5" height="2" rx="1" fill="#B45309" fill-opacity=".6"/>'],
+    content: ['t-pink', '<rect x="4" y="3" width="16" height="18" rx="2.5" fill="#fff"/><rect x="7" y="6" width="10" height="5" rx="1.2" fill="#DB2777" fill-opacity=".55"/><path d="M7 14.5h10M7 17.5h6" stroke="#DB2777" stroke-width="1.8" stroke-linecap="round"/>'],
     site: ['t-sky', '<circle cx="12" cy="12" r="9" fill="#fff" fill-opacity=".3"/><circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.8"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18" stroke="#fff" stroke-width="1.6"/>'],
     settings: ['t-slate', '<path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" fill="#fff"/><circle cx="12" cy="12" r="3.2" fill="#475569"/>']
   };
@@ -55,6 +56,7 @@
     { key: 'orders', label: 'Báo giá & đơn hàng', href: '/admin/orders.html' },
     { key: 'payments', label: 'Thanh toán', href: '/admin/payments.html' },
     { key: 'subscriptions', label: 'Khách hàng & gói', href: '/admin/subscriptions.html' },
+    { key: 'content', label: 'Nội dung trang', href: '/admin/content.html' },
     { key: 'settings', label: 'Cài đặt', href: '/admin/settings.html' },
     { key: 'site', label: 'Xem trang chủ', href: '/', ext: true }
   ];

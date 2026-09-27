@@ -163,7 +163,7 @@ p{margin:0}
 .chip{padding:3px 10px;border-radius:999px;font-size:12px;background:rgba(125,211,252,.25);color:#E0F7FF;white-space:nowrap}
 .float{position:absolute;border-radius:16px;background:linear-gradient(150deg,rgba(80,130,255,.45),rgba(29,78,216,.3));border:1.5px solid rgba(125,211,252,.75);box-shadow:0 0 30px rgba(56,189,248,.4),0 30px 70px rgba(8,20,90,.55)}
 .float small{color:#D6E6FF!important}
-.f-ai{right:-80px;top:36px;width:300px;padding:18px;transform:translateZ(110px)}
+.f-ai{right:-50px;top:-118px;width:300px;padding:18px;transform:translateZ(110px)}
 .f-ai p{margin-top:10px;font-size:14px;line-height:1.55}
 .f-ai .mini{display:flex;gap:8px;margin-top:14px}
 .f-ai .mini span{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;background:var(--primary)}
@@ -337,9 +337,9 @@ html.lead-open{overflow:hidden}
     </div>
     <div class="tabs" role="tablist" aria-label="Chọn ngành" id="tabs"></div>
   </div>
-  <div class="fit" id="dashFit" data-w="1120" data-h="660">
-    <div class="fit-scale" style="width:1120px;height:660px">
-      <div class="persp" style="padding-top:40px">
+  <div class="fit" id="dashFit" data-w="1120" data-h="740">
+    <div class="fit-scale" style="width:1120px;height:740px">
+      <div class="persp" style="padding-top:120px">
         <div class="dash3d" id="dash3d">
           <div class="dash">
             <div class="dash-side">
@@ -591,12 +591,25 @@ const BIZTECK_LINKS = {
   terms: '#'        // Điều khoản sử dụng
 };
 /* ================================================================ */
+/* Bản đồ link dùng chung, được cập nhật trực tiếp từ settings 'biztech_site' (xem script CMS cuối trang).
+   Chỉ chấp nhận link bắt đầu bằng https://, http:// hoặc / – trả về '' nếu không hợp lệ.
+   Chặn //host và /\host (trình duyệt coi là link sang tên miền khác) và ký tự điều khiển/khoảng trắng. */
+function bzSafeLink(u) {
+  if (typeof u !== 'string') return '';
+  u = u.trim();
+  return /^(?:https?:\/\/[^\/\\\u0000- \u007F]|\/(?![\/\\]))[^\u0000- \u007F]*$/i.test(u) ? u : '';
+}
+function bzApplyLinks() {
+  document.querySelectorAll('[data-link]').forEach(function (a) {
+    const url = bzSafeLink(BIZTECK_LINKS[a.dataset.link]);
+    a.setAttribute('href', url || '#');
+    if (/^https?:\/\//i.test(url)) { a.target = '_blank'; a.rel = 'noopener'; }
+    else { a.removeAttribute('target'); a.removeAttribute('rel'); }
+  });
+}
 
 (function () {
-  document.querySelectorAll('[data-link]').forEach(function (a) {
-    const url = BIZTECK_LINKS[a.dataset.link];
-    if (url && url !== '#') a.href = url;
-  });
+  bzApplyLinks();
 
   const header = document.getElementById('top');
   const onScroll = function () { header.classList.toggle('scrolled', window.scrollY > 20); };
@@ -899,8 +912,8 @@ const BIZTECK_LINKS = {
   ['autopro', 'skyagent', 'spacare', 'tradehub', 'factoryone'].forEach(function (key) {
     document.querySelectorAll('.prod [data-link="' + key + '"]').forEach(function (a) {
       a.addEventListener('click', function (e) {
-        var url = links[key];
-        if (url && url !== '#') return; /* đã có trang riêng: đi tới link */
+        /* đọc bản đồ link tại thời điểm click (được CMS cập nhật trực tiếp) */
+        if (typeof bzSafeLink === 'function' ? bzSafeLink(links[key]) : '') return; /* đã có trang riêng: đi tới link */
         e.preventDefault(); open(key);
       });
     });
@@ -963,6 +976,231 @@ const BIZTECK_LINKS = {
       busy = false; submitBtn.disabled = false; submitBtn.textContent = 'Gửi yêu cầu';
     }
   });
+})();
+</script>
+<script>
+/* ===== Nội dung trang từ Supabase settings 'biztech_site' =====
+   Nội dung HTML ở trên là bản mặc định (fallback). Áp bản cache (localStorage) ngay, rồi áp bản mới khi tải xong.
+   Chỉ dùng textContent / createElement – không innerHTML với dữ liệu. */
+(function () {
+  'use strict';
+  var SUPABASE_URL = 'https://zuucoqfylagcfwnhomet.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_LVQhPQFXraB7C_1i0VtFlw_WndNHxAq';
+  var CACHE_KEY = 'bz_site_v1';
+  var PROD_KEYS = ['autopro', 'skyagent', 'spacare', 'tradehub', 'factoryone'];
+
+  function str(v) { return typeof v === 'string' && v.trim() ? v.trim() : ''; }
+  function pick(v, d) { return str(v) || d; }
+  function obj(v) { return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; }
+  function arr(v) { return Array.isArray(v) ? v : []; }
+  function qs(s, r) { return (r || document).querySelector(s); }
+  function qsa(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function linkFn(u) { return typeof bzSafeLink === 'function' ? bzSafeLink(u) : ''; }
+
+  /* ---------- chụp nội dung mặc định từ DOM ---------- */
+  var h1 = qs('.hero h1'), hl = h1 && qs('.hl', h1);
+  var leadDesk = qs('.hero .lead-desk'), leadMob = qs('.hero .lead-mob');
+  var heroBtns = qsa('.hero .cta-row .btn');
+  var D = { hero: {}, prods: {}, order: [], faq: [], contact: {} };
+  if (h1) {
+    var t1 = '', t2 = '', seenBr = false;
+    Array.prototype.forEach.call(h1.childNodes, function (n) {
+      if (n.nodeName === 'BR') seenBr = true;
+      else if (n.nodeType === 3) { if (seenBr) t2 += n.nodeValue; else t1 += n.nodeValue; }
+    });
+    D.hero = { t1: t1.trim(), t2: t2.trim(), hl: hl ? hl.textContent.trim() : '' };
+  }
+  D.hero.leadDesk = leadDesk ? leadDesk.textContent : '';
+  D.hero.leadMob = leadMob ? leadMob.textContent : '';
+  D.hero.cta = heroBtns.map(function (b) { return b.textContent; });
+
+  var prodsBox = qs('.prods');
+  var prodEls = {};
+  qsa('.prods > article.prod').forEach(function (a) {
+    var btn = qs('[data-link]', a); if (!btn) return;
+    var k = btn.getAttribute('data-link');
+    prodEls[k] = a; D.order.push(k);
+    D.prods[k] = {
+      ind: (qs('.ind', a) || {}).textContent || '',
+      name: (qs('h3', a) || {}).textContent || '',
+      desc: (qs(':scope > p', a) || {}).textContent || '',
+      feats: qsa('ul li', a).map(function (li) { return li.textContent; })
+    };
+  });
+  var optEls = {};
+  qsa('#lf-interest option[data-key]').forEach(function (o) { optEls[o.getAttribute('data-key')] = { el: o, value: o.value, text: o.textContent }; });
+
+  var faqBox = qs('#hoi-dap .faq > div:last-child');
+  if (faqBox) D.faq = qsa('details', faqBox).map(function (d) { return { q: (qs('summary', d) || {}).textContent || '', a: (qs('p', d) || {}).textContent || '' }; });
+
+  var coEl = qs('footer .co'), metaEl = qs('footer .meta');
+  D.contact.company = coEl ? coEl.textContent : '';
+  if (metaEl) {
+    var metaTxt = [];
+    Array.prototype.forEach.call(metaEl.childNodes, function (n) { if (n.nodeType === 3) metaTxt.push(n.nodeValue); });
+    D.contact.address = (metaTxt[0] || '').trim();
+    var bits = (metaTxt[1] || '').split('·').map(function (s) { return s.trim(); });
+    D.contact.phone = bits[0] || '0918 566 177';
+    D.contact.email = bits[1] || 'info@mhtbiz.com';
+  }
+  var DEF_LINKS = {};
+  if (typeof BIZTECK_LINKS !== 'undefined') Object.keys(BIZTECK_LINKS).forEach(function (k) { DEF_LINKS[k] = BIZTECK_LINKS[k]; });
+  var logoA = qs('header .logo'), logoSvg = logoA && qs('svg', logoA), logoImg = null;
+
+  /* ---------- áp dữ liệu ---------- */
+  function applyHero(h) {
+    h = obj(h);
+    if (h1) {
+      var t1 = pick(h.title_1, D.hero.t1), t2 = pick(h.title_2, D.hero.t2), th = pick(h.title_hl, D.hero.hl);
+      var frag = document.createDocumentFragment();
+      frag.appendChild(document.createTextNode(t1));
+      frag.appendChild(document.createElement('br'));
+      frag.appendChild(document.createTextNode(t2 + ' '));
+      frag.appendChild(el('span', 'hl', th));
+      h1.textContent = ''; h1.appendChild(frag);
+    }
+    var lead = str(h.lead);
+    if (leadDesk) leadDesk.textContent = lead || D.hero.leadDesk;
+    if (leadMob) leadMob.textContent = lead || D.hero.leadMob;
+    if (heroBtns[0]) heroBtns[0].textContent = pick(h.cta_primary, D.hero.cta[0]);
+    if (heroBtns[1]) heroBtns[1].textContent = pick(h.cta_secondary, D.hero.cta[1]);
+  }
+
+  function sentence(s) { s = s.toLocaleLowerCase('vi'); return s.charAt(0).toLocaleUpperCase('vi') + s.slice(1); }
+
+  function applyProducts(list) {
+    var byKey = {}, order = [];
+    arr(list).forEach(function (p) {
+      p = obj(p);
+      var k = str(p.key);
+      if (!k || !prodEls[k] || byKey[k]) return;
+      byKey[k] = p; order.push(k);
+    });
+    D.order.forEach(function (k) { if (order.indexOf(k) < 0) order.push(k); });
+    order.forEach(function (k) {
+      var a = prodEls[k], d = D.prods[k], p = byKey[k] || {};
+      var ind = qs('.ind', a), h3 = qs('h3', a), desc = qs(':scope > p', a), ul = qs('ul', a);
+      var name = pick(p.name, d.name), indus = pick(p.industry, d.ind);
+      if (ind) ind.textContent = indus;
+      if (h3) h3.textContent = name;
+      if (desc) desc.textContent = pick(p.desc, d.desc);
+      if (ul) {
+        var feats = arr(p.features).map(str).filter(Boolean).slice(0, 6);
+        if (!feats.length) feats = d.feats;
+        ul.textContent = '';
+        feats.forEach(function (f) { ul.appendChild(el('li', null, f)); });
+      }
+      var hide = p.visible === false;
+      a.hidden = hide; a.style.display = hide ? 'none' : '';
+      if (prodsBox) prodsBox.appendChild(a); /* sắp xếp theo thứ tự mảng products */
+      /* ô chọn trong hộp thoại tư vấn */
+      var o = optEls[k];
+      if (o) {
+        if (str(p.name) || str(p.industry)) { o.el.value = name; o.el.textContent = name + ' – ' + sentence(indus); }
+        else { o.el.value = o.value; o.el.textContent = o.text; }
+        o.el.hidden = hide;
+      }
+      /* link sản phẩm: cập nhật bản đồ dùng chung, handler click đọc lúc click */
+      if (typeof BIZTECK_LINKS !== 'undefined') BIZTECK_LINKS[k] = linkFn(p.link) || DEF_LINKS[k] || '#';
+    });
+  }
+
+  function applyFaq(list) {
+    if (!faqBox) return;
+    var items = arr(list).map(obj).map(function (x) { return { q: str(x.q), a: str(x.a) }; }).filter(function (x) { return x.q && x.a; });
+    if (!items.length) items = D.faq;
+    faqBox.textContent = '';
+    items.forEach(function (x, i) {
+      var d = el('details'); if (i === 0) d.open = true;
+      d.appendChild(el('summary', null, x.q));
+      d.appendChild(el('p', null, x.a));
+      faqBox.appendChild(d);
+    });
+  }
+
+  function applyContact(c) {
+    c = obj(c);
+    var company = pick(c.company, D.contact.company), address = pick(c.address, D.contact.address);
+    var phone = pick(c.phone, D.contact.phone), email = pick(c.email, D.contact.email);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) email = D.contact.email;
+    var tel = phone.replace(/[^\d+]/g, '');
+    if (tel.replace(/\D/g, '').length < 8) { phone = D.contact.phone; tel = phone.replace(/[^\d+]/g, ''); }
+    if (coEl) coEl.textContent = company;
+    if (metaEl) {
+      metaEl.textContent = '';
+      metaEl.appendChild(document.createTextNode(address));
+      metaEl.appendChild(document.createElement('br'));
+      metaEl.appendChild(document.createTextNode(phone + ' · ' + email + ' · © ' + new Date().getFullYear() + ' BIZTECK'));
+    }
+    qsa('a[href^="tel:"]').forEach(function (a) { a.setAttribute('href', 'tel:' + tel); a.textContent = phone; });
+    qsa('a[href^="mailto:"]').forEach(function (a) { a.setAttribute('href', 'mailto:' + email); a.textContent = email; });
+  }
+
+  function applyLinks(l) {
+    l = obj(l);
+    if (typeof BIZTECK_LINKS === 'undefined') return;
+    ['privacy', 'terms'].forEach(function (k) { BIZTECK_LINKS[k] = linkFn(l[k]) || DEF_LINKS[k] || '#'; });
+  }
+
+  function applyLogo(u) {
+    if (!logoA) return;
+    u = str(u);
+    var ok = /^https:\/\/[^\s"'<>]+$/i.test(u);
+    if (ok) {
+      if (!logoImg) {
+        logoImg = document.createElement('img');
+        logoImg.alt = 'BIZTECK'; logoImg.height = 30;
+        logoImg.style.cssText = 'height:30px;width:auto;max-width:160px;display:block;object-fit:contain';
+        logoImg.decoding = 'async';
+        logoImg.addEventListener('error', function () { applyLogo(''); });
+      }
+      if (logoImg.getAttribute('src') !== u) logoImg.src = u;
+      if (logoSvg && logoSvg.parentNode) logoSvg.parentNode.replaceChild(logoImg, logoSvg);
+      else if (!logoImg.parentNode) logoA.insertBefore(logoImg, logoA.firstChild);
+    } else if (logoImg && logoImg.parentNode && logoSvg) {
+      logoImg.parentNode.replaceChild(logoSvg, logoImg);
+    }
+  }
+
+  function apply(v) {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return;
+    var steps = [
+      function () { applyHero(v.hero); },
+      function () { applyProducts(v.products); },
+      function () { applyLinks(v.links); },
+      function () { if (typeof bzApplyLinks === 'function') bzApplyLinks(); },
+      function () { applyFaq(v.faq); },
+      function () { applyContact(v.contact); },
+      function () { applyLogo(v.logo_url); }
+    ];
+    steps.forEach(function (fn) { try { fn(); } catch (e) { /* bỏ qua lỗi từng phần, giữ nội dung mặc định */ } });
+  }
+
+  /* 1) bản cache */
+  var cached = null;
+  try { var raw = localStorage.getItem(CACHE_KEY); if (raw) cached = JSON.parse(raw); } catch (e) { cached = null; }
+  if (cached) apply(cached);
+
+  /* 2) bản mới từ Supabase */
+  if (typeof fetch !== 'function') return;
+  var ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  var timer = ctl ? setTimeout(function () { ctl.abort(); }, 5000) : null;
+  fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.biztech_site&select=value', {
+    headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, Accept: 'application/json' },
+    signal: ctl ? ctl.signal : undefined, cache: 'no-store'
+  }).then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (rows) {
+      /* không còn bản ghi: bỏ cache để lần sau dùng nội dung mặc định */
+      if (Array.isArray(rows) && !rows.length) { try { localStorage.removeItem(CACHE_KEY); } catch (e) {} return; }
+      var v = Array.isArray(rows) && rows[0] && rows[0].value;
+      if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { v = null; } }
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return;
+      apply(v);
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch (e) {}
+    })
+    .catch(function () { /* mạng lỗi / hết thời gian: giữ nội dung hiện tại */ })
+    .then(function () { if (timer) clearTimeout(timer); });
 })();
 </script>
 
