@@ -2,6 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
+<script>if(/^biztech-web/.test(location.hostname))location.replace('https://zetabiz.vercel.app'+location.pathname+location.search+location.hash);</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Zetabiz – Nền tảng ứng dụng SaaS tích hợp AI</title>
 <meta name="theme-color" content="#050A1E">
@@ -278,7 +279,7 @@ html.lead-open{overflow:hidden}
 @media (prefers-reduced-motion: reduce){
   *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
-.logo-mark{width:30px;height:auto;display:block;flex-shrink:0}.logo-word{font-family:'Poppins','Be Vietnam Pro',sans-serif;font-weight:700;font-size:21px;letter-spacing:.005em;line-height:1}
+.logo-mark{width:34px;height:auto;display:block;flex-shrink:0}.logo-custom{height:40px;width:auto;max-width:220px;display:block;object-fit:contain}.logo-word{font-family:'Poppins','Be Vietnam Pro',sans-serif;font-weight:700;font-size:21px;letter-spacing:.005em;line-height:1}
 </style>
 </head>
 <body>
@@ -1147,19 +1148,21 @@ function bzApplyLinks() {
     if (!logoA) return;
     u = str(u);
     var ok = /^https:\/\/[^\s"'<>]+$/i.test(u);
+    var word = qs('.logo-word', logoA);
     if (ok) {
       if (!logoImg) {
         logoImg = document.createElement('img');
-        logoImg.alt = ''; logoImg.height = 30;
-        logoImg.style.cssText = 'height:30px;width:auto;max-width:160px;display:block;object-fit:contain';
+        logoImg.alt = 'Zetabiz'; logoImg.className = 'logo-custom';
         logoImg.decoding = 'async';
         logoImg.addEventListener('error', function () { applyLogo(''); });
       }
       if (logoImg.getAttribute('src') !== u) logoImg.src = u;
       if (logoSvg && logoSvg.parentNode) logoSvg.parentNode.replaceChild(logoImg, logoSvg);
       else if (!logoImg.parentNode) logoA.insertBefore(logoImg, logoA.firstChild);
-    } else if (logoImg && logoImg.parentNode && logoSvg) {
-      logoImg.parentNode.replaceChild(logoSvg, logoImg);
+      if (word) word.hidden = true; /* logo tải lên là logo đầy đủ: thay cả biểu tượng lẫn chữ */
+    } else {
+      if (logoImg && logoImg.parentNode && logoSvg) logoImg.parentNode.replaceChild(logoSvg, logoImg);
+      if (word) word.hidden = false;
     }
   }
 

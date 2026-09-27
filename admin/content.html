@@ -2,6 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
+<script>if(/^biztech-web/.test(location.hostname))location.replace('https://zetabiz.vercel.app'+location.pathname+location.search+location.hash);</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Nội dung trang – Quản trị Zetabiz</title>
@@ -409,7 +410,7 @@ BZ.boot(async function (ctx) {
       h('div', { class: 'card-h' }, h('h2', null, 'Logo')),
       h('div', { class: 'logo-box' }, prevBox,
         h('div', { class: 'field' }, logoNote,
-          h('small', { class: 'muted' }, 'PNG, SVG, JPEG hoặc WEBP, tối đa 1 MB. Nên dùng logo nền trong suốt, màu sáng.'),
+          h('small', { class: 'muted' }, 'PNG, SVG, JPEG hoặc WEBP, tối đa 1 MB. Logo tải lên sẽ thay cả biểu tượng và chữ Zetabiz ở đầu trang chủ. Trang chủ nền tối: dùng logo nền trong suốt, chữ màu trắng hoặc sáng, ảnh cắt sát mép.'),
           ro ? null : h('div', { class: 'row-actions' }, upBtn, resetBtn), file)),
       h('div', { style: { marginTop: '12px' } }, upMsg)));
 
