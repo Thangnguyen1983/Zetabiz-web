@@ -164,7 +164,7 @@ footer b{color:var(--text);font-weight:600}
 </main>
 
 <footer>
-  <div class="wrap" id="foot"><b>CÔNG TY MHT BUSINESS SOLUTIONS</b> · Nhà phân phối độc quyền BIZTECK tại Việt Nam<br>95 Nguyễn Thị Minh Khai, Khối 3 Lê Mao, Phường Thành Vinh, Nghệ An · 0918 566 177 · info@mhtbiz.com</div>
+  <div class="wrap" id="foot"><b>CÔNG TY MHT BUSINESS SOLUTIONS</b><br>95 Nguyễn Thị Minh Khai, Khối 3 Lê Mao, Phường Thành Vinh, Nghệ An · 0918 566 177 · info@mhtbiz.com<div style="margin-top:6px"><a href="/dieu-khoan/">Điều khoản sử dụng</a> · <a href="/chinh-sach-bao-mat/">Chính sách bảo mật</a></div></div>
 </footer>
 <div class="sr" role="status" aria-live="polite" id="live"></div>
 
@@ -430,7 +430,12 @@ footer b{color:var(--text);font-weight:600}
     return h('section', { class: 'card', 'aria-labelledby': 'f-h' },
       h('div', { class: 'card-h' }, h('h2', { id: 'f-h' }, rejected ? 'Gửi lại xác nhận chuyển khoản' : 'Tôi đã chuyển khoản')),
       h('p', { style: 'font-size:14px;color:var(--muted);margin:-6px 0 14px' }, 'Sau khi chuyển khoản, gửi xác nhận để kế toán đối soát và kích hoạt tài khoản cho bạn.'),
+      h('p', { style: 'font-size:13px;color:var(--muted);margin:0 0 14px' }, 'Bằng việc chuyển khoản và gửi xác nhận, bạn đồng ý với ', h('a', { href: '/dieu-khoan/', target: '_blank', rel: 'noopener' }, 'Điều khoản sử dụng và giao dịch'), ' của BIZTECK. Dữ liệu cá nhân được xử lý theo ', h('a', { href: '/chinh-sach-bao-mat/', target: '_blank', rel: 'noopener' }, 'Chính sách bảo mật'), '.'),
       form);
+  }
+
+  function legalLinks() {
+    return h('div', { style: 'margin-top:6px' }, h('a', { href: '/dieu-khoan/' }, 'Điều khoản sử dụng'), ' · ', h('a', { href: '/chinh-sach-bao-mat/' }, 'Chính sách bảo mật'));
   }
 
   function thanks(already) {
@@ -441,7 +446,7 @@ footer b{color:var(--text);font-weight:600}
       box.textContent = '';
       box.append(stateCard('ok', already ? 'Chúng tôi đã nhận xác nhận trước đó' : 'Cảm ơn bạn! Đã nhận xác nhận chuyển khoản', null,
         h('ol', { class: 'next' },
-          h('li', null, h('span', { class: 'k' }, '1'), h('span', null, 'Kế toán MHT BIZ đối soát giao dịch trong giờ làm việc.')),
+          h('li', null, h('span', { class: 'k' }, '1'), h('span', null, 'Kế toán BIZTECK đối soát giao dịch trong giờ làm việc.')),
           h('li', null, h('span', { class: 'k' }, '2'), h('span', null, 'Khi khớp, hệ thống kích hoạt gói dịch vụ của bạn.')),
           h('li', null, h('span', { class: 'k' }, '3'), h('span', null, 'Thông tin tài khoản đăng nhập được gửi qua email bạn đã đăng ký.')))), contactLine());
       var first = box.querySelector('h2'); if (first) { first.setAttribute('tabindex', '-1'); first.focus(); }
@@ -459,8 +464,9 @@ footer b{color:var(--text);font-weight:600}
     }
     if (q.company && q.company.name) {
       var foot = document.getElementById('foot'); foot.textContent = '';
-      foot.append(h('b', null, q.company.name), ' · Nhà phân phối độc quyền BIZTECK tại Việt Nam', h('br'),
+      foot.append(h('b', null, q.company.name), h('br'),
         [q.company.address, q.company.phone, q.company.email].filter(Boolean).join(' · '));
+      foot.append(legalLinks());
     }
     var s = q.status, p = q.payment_status;
     var side = h('div', { class: 'side' });
@@ -475,7 +481,7 @@ footer b{color:var(--text);font-weight:600}
       }
     } else if (s === 'paid' || s === 'processing') {
       active = 3;
-      side.append(stateCard('ok', 'Đã thanh toán', s === 'processing' ? 'Đội ngũ MHT BIZ đang khởi tạo và cấu hình hệ thống cho bạn. Thông tin đăng nhập sẽ được gửi qua email.' : 'Cảm ơn bạn! Chúng tôi đang chuẩn bị kích hoạt tài khoản. Thông tin đăng nhập sẽ được gửi qua email.', contactLine()));
+      side.append(stateCard('ok', 'Đã thanh toán', s === 'processing' ? 'Đội ngũ BIZTECK đang khởi tạo và cấu hình hệ thống cho bạn. Thông tin đăng nhập sẽ được gửi qua email.' : 'Cảm ơn bạn! Chúng tôi đang chuẩn bị kích hoạt tài khoản. Thông tin đăng nhập sẽ được gửi qua email.', contactLine()));
     } else if (s === 'completed') {
       allDone = true;
       side.append(stateCard('ok', 'Đã thanh toán và kích hoạt', 'Tài khoản của bạn đã sẵn sàng. Kiểm tra email để nhận thông tin đăng nhập.', contactLine()));

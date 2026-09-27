@@ -519,7 +519,7 @@ html.lead-open{overflow:hidden}
       <div>
         <span class="eyebrow">Tư vấn miễn phí</span>
         <h2 id="leadTitle" style="margin-top:8px">Đăng ký nhận tư vấn &amp; báo giá</h2>
-        <p id="leadDesc">Để lại thông tin, chuyên viên MHT BIZ sẽ gọi lại tư vấn giải pháp phù hợp với doanh nghiệp của bạn.</p>
+        <p id="leadDesc">Để lại thông tin, chuyên viên BIZTECK sẽ gọi lại tư vấn giải pháp phù hợp với doanh nghiệp của bạn.</p>
       </div>
       <button type="button" class="lead-x" id="leadClose" aria-label="Đóng">×</button>
     </div>
@@ -548,7 +548,7 @@ html.lead-open{overflow:hidden}
         </select></div>
       <div class="lf full"><label for="lf-need">Nhu cầu</label><textarea id="lf-need" name="need" maxlength="1500" placeholder="Ví dụ: garage 8 thợ, cần quản lý lệnh sửa chữa và kho phụ tùng"></textarea></div>
       <div class="lead-hp" aria-hidden="true"><label for="lf-website">Website</label><input id="lf-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
-      <label class="lead-ck full" for="lf-consent"><input id="lf-consent" name="consent" type="checkbox" required><span>Tôi đồng ý để MHT BIZ liên hệ tư vấn qua điện thoại, Zalo hoặc email. *</span></label>
+      <label class="lead-ck full" for="lf-consent"><input id="lf-consent" name="consent" type="checkbox" required><span>Tôi đã đọc và đồng ý với <a href="/chinh-sach-bao-mat/" target="_blank" rel="noopener">Chính sách bảo mật dữ liệu cá nhân</a>, cho phép BIZTECK xử lý thông tin trên để liên hệ tư vấn qua điện thoại, Zalo hoặc email. *</span></label>
       <div class="lead-err full" id="leadErr" role="alert" hidden></div>
       <div class="lead-foot full">
         <small>Thông tin của bạn chỉ dùng để tư vấn.</small>
@@ -560,7 +560,7 @@ html.lead-open{overflow:hidden}
       <h3 id="leadOkTitle" tabindex="-1">Đã gửi yêu cầu thành công</h3>
       <p>Mã yêu cầu của bạn</p>
       <div class="lead-code" id="leadCode"></div>
-      <p>MHT BIZ sẽ liên hệ trong giờ làm việc. Cần gấp? Gọi <a href="tel:0918566177">0918 566 177</a>.</p>
+      <p>BIZTECK sẽ liên hệ trong giờ làm việc. Cần gấp? Gọi <a href="tel:0918566177">0918 566 177</a>.</p>
       <button type="button" class="btn btn-ghost" id="leadDone">Đóng</button>
     </div>
   </div>
@@ -587,8 +587,8 @@ const BIZTECK_LINKS = {
   spacare: '#',     // BIZTECK SpaCare – Spa & thẩm mỹ
   tradehub: '#',    // BIZTECK TradeHub – Thương mại
   factoryone: '#',  // BIZTECK FactoryOne – Sản xuất & thương mại
-  privacy: '#',     // Chính sách bảo mật
-  terms: '#'        // Điều khoản sử dụng
+  privacy: '/chinh-sach-bao-mat/', // Chính sách bảo mật
+  terms: '/dieu-khoan/'   // Điều khoản sử dụng
 };
 /* ================================================================ */
 /* Bản đồ link dùng chung, được cập nhật trực tiếp từ settings 'biztech_site' (xem script CMS cuối trang).
@@ -944,7 +944,7 @@ function bzApplyLinks() {
     if (!/^(\+?84|0)\d{8,10}$/.test(phoneDigits)) return showErr('Số điện thoại chưa đúng. Ví dụ: 0918 566 177.', f.phone);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return showErr('Email chưa đúng định dạng.', f.email);
     if (need.length > 1500) return showErr('Phần nhu cầu tối đa 1.500 ký tự.', f.need);
-    if (!f.consent.checked) return showErr('Vui lòng đánh dấu đồng ý để MHT BIZ liên hệ tư vấn.', f.consent);
+    if (!f.consent.checked) return showErr('Vui lòng đánh dấu đồng ý với Chính sách bảo mật để BIZTECK liên hệ tư vấn.', f.consent);
 
     var payload = Object.assign({
       full_name: name, phone: phoneDigits, email: email,
