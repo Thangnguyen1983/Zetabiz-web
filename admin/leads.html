@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Khách tiềm năng – Quản trị BIZTECK</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231D4ED8'/%3E%3Ccircle cx='16' cy='12' r='5' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M16 17v9M10 24c2 2 10 2 12 0' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>
+.chk{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:14px;color:var(--text-2);cursor:pointer}
+.toolbar .chk input{height:18px;width:18px;min-width:0;padding:0}
+.tabs .cnt{margin-left:6px;font:500 12px var(--mono);color:var(--muted)}
+.overdue{color:var(--danger);font-weight:600}
+.lead-sec{display:flex;flex-direction:column;gap:12px;padding-top:6px;border-top:1px solid var(--line)}
+.lead-sec h3{font-size:15px;font-weight:600}
+.copy-row{display:flex;gap:8px;flex-wrap:wrap}
+.copy-row input{flex:1;min-width:220px;height:44px;padding:0 12px;border-radius:10px;border:1px solid var(--line-2);font:13px var(--mono)}
+</style>
+</head>
+<body data-page="leads">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, fmt = BZ.fmt, sb = ctx.sb, main = ctx.main;
+  const PAGE = 25;
+  const STATUSES = ['new', 'contacted', 'qualified', 'demo_scheduled', 'proposal', 'won', 'lost'];
+  const ACT_LABEL = { note: 'Ghi chú', call: 'Cuộc gọi', email: 'Email', meeting: 'Gặp mặt', status_change: 'Đổi trạng thái', assignment: 'Phân công phụ trách', quote: 'Báo giá' };
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const LEAD_COLS = 'id,request_code,full_name,company,email,phone,interest,source,status,owner_id,next_follow_up_at,created_at';
+
+  const state = { status: '', q: '', follow: false, page: 0 };
+
+  /* ---------- Tiện ích ---------- */
+  function clean(s) { return String(s || '').replace(/[,()%*\\"]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function isoToLocal(iso) {
+    if (!iso) return '';
+    const d = new Date(iso); if (isNaN(d)) return '';
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  function localToIso(v) {
+    if (!v) return null;
+    const d = new Date(v); // chuỗi datetime-local không có múi giờ → hiểu theo giờ trình duyệt
+    return isNaN(d) ? null : d.toISOString();
+  }
+  function isOverdue(l) { return !!l.next_follow_up_at && new Date(l.next_follow_up_at) <= new Date() && l.status !== 'won' && l.status !== 'lost'; }
+  function statusLabel(s) { return ((BZ.LABELS.lead || {})[s] || [s || '—'])[0]; }
+  function digits(s) { return String(s || '').replace(/\D/g, ''); }
+
+  /* ---------- Nhân sự ---------- */
+  let staff = []; const staffMap = {};
+  async function loadStaff() {
+    let rows = null;
+    try {
+      const d = await BZ.rpc('list_staff');
+      if (Array.isArray(d)) rows = d.map(function (r) { return { id: r.id || r.user_id, name: r.full_name || r.email || '', email: r.email || '', active: r.is_active !== false }; });
+    } catch (e) { rows = null; }
+    if (!rows) {
+      const r = await sb.from('profiles').select('id,full_name,email');
+      rows = (r.data || []).map(function (p) { return { id: p.id, name: p.full_name || p.email || '', email: p.email || '', active: true }; });
+    }
+    staff = rows.filter(function (r) { return r.id; });
+    staff.forEach(function (s) { staffMap[s.id] = s; });
+    staff.sort(function (a, b) { return a.name.localeCompare(b.name, 'vi'); });
+  }
+  function staffName(id) { return id ? ((staffMap[id] && staffMap[id].name) || 'Nhân sự khác') : '—'; }
+
+  /* ---------- Khung trang ---------- */
+  const subEl = h('p', { class: 'sub' }, 'Đang tải…');
+  const head = BZ.pageHead('Khách tiềm năng', null);
+  head.querySelector('.grow').appendChild(subEl);
+  main.appendChild(head);
+
+  const tabBtns = {};
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Lọc theo trạng thái' },
+    [''].concat(STATUSES).map(function (s) {
+      const cnt = h('span', { class: 'cnt' }, '');
+      const b = h('button', { type: 'button', role: 'tab', 'aria-selected': 'false', onclick: function () { state.status = s; state.page = 0; syncTabs(); loadList(); } }, s ? statusLabel(s) : 'Tất cả', cnt);
+      tabBtns[s] = { btn: b, cnt: cnt };
+      return b;
+    }));
+  function syncTabs() { Object.keys(tabBtns).forEach(function (k) { tabBtns[k].btn.setAttribute('aria-selected', k === state.status ? 'true' : 'false'); }); }
+
+  const search = h('input', { type: 'search', placeholder: 'Tìm tên, email, số điện thoại, công ty, mã yêu cầu…', 'aria-label': 'Tìm khách tiềm năng' });
+  search.addEventListener('input', BZ.debounce(function () { state.q = clean(search.value); state.page = 0; loadList(); }, 350));
+  const followChk = h('input', { type: 'checkbox' });
+  followChk.addEventListener('change', function () { state.follow = followChk.checked; state.page = 0; loadList(); });
+  const toolbar = h('div', { class: 'toolbar' }, search, h('label', { class: 'chk' }, followChk, 'Chỉ khách đến hạn gọi lại'));
+
+  const tbody = h('tbody', null, BZ.emptyRow(8, 'Đang tải…'));
+  const pagerInfo = h('span', null, '');
+  const prevBtn = h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { if (state.page > 0) { state.page--; loadList(); } } }, '‹ Trước');
+  const nextBtn = h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { state.page++; loadList(); } }, 'Sau ›');
+  main.appendChild(h('section', { class: 'card' },
+    tabs, h('div', { style: { height: '14px' } }), toolbar, h('div', { style: { height: '12px' } }),
+    h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+      h('thead', null, h('tr', null, ['Khách hàng', 'Liên hệ', 'Quan tâm', 'Nguồn', 'Trạng thái', 'Phụ trách', 'Hẹn gọi lại', 'Ngày tạo'].map(function (t) { return h('th', null, t); }))),
+      tbody)),
+    h('div', { class: 'pager' }, pagerInfo, h('div', { class: 'row-actions' }, prevBtn, nextBtn))
+  ));
+
+  /* ---------- Đếm theo trạng thái ---------- */
+  async function loadCounts() {
+    const all = [''].concat(STATUSES);
+    const res = await Promise.all(all.map(function (s) {
+      let q = sb.from('leads').select('id', { count: 'exact', head: true });
+      if (s) q = q.eq('status', s);
+      return q;
+    }));
+    res.forEach(function (r, i) { tabBtns[all[i]].cnt.textContent = r.error ? '' : fmt.num(r.count || 0); });
+    if (!res[0].error) subEl.textContent = 'Tổng cộng ' + fmt.num(res[0].count || 0) + ' khách tiềm năng';
+    else subEl.textContent = BZ.errText(res[0].error);
+  }
+
+  /* ---------- Danh sách ---------- */
+  let listSeq = 0;
+  async function loadList() {
+    const seq = ++listSeq;
+    tbody.textContent = ''; tbody.appendChild(BZ.emptyRow(8, 'Đang tải…'));
+    prevBtn.disabled = true; nextBtn.disabled = true;
+    const from = state.page * PAGE, to = from + PAGE - 1;
+    let q = sb.from('leads').select(LEAD_COLS, { count: 'exact' });
+    if (state.status) q = q.eq('status', state.status);
+    if (state.follow) q = q.lte('next_follow_up_at', new Date().toISOString()).not('status', 'in', '(won,lost)');
+    if (state.q) {
+      const x = '%' + state.q + '%';
+      q = q.or(['full_name', 'email', 'phone', 'company', 'request_code'].map(function (c) { return c + '.ilike.' + x; }).join(','));
+    }
+    const r = await q.order('created_at', { ascending: false }).range(from, to);
+    if (seq !== listSeq) return;
+    tbody.textContent = '';
+    if (r.error) { tbody.appendChild(BZ.emptyRow(8, BZ.errText(r.error))); pagerInfo.textContent = ''; return; }
+    const total = r.count || 0;
+    if (!r.data.length) {
+      tbody.appendChild(BZ.emptyRow(8, (state.q || state.status || state.follow) ? 'Không có khách phù hợp với bộ lọc.' : 'Chưa có khách tiềm năng. Khi khách để lại thông tin trên trang chủ, họ sẽ xuất hiện ở đây.'));
+    } else r.data.forEach(function (l) {
+      tbody.appendChild(h('tr', { class: 'clickable', tabindex: '0', onclick: function () { openDetail(l.id); }, onkeydown: function (e) { if (e.key === 'Enter') openDetail(l.id); } },
+        h('td', null, h('b', null, l.full_name || '—'), l.company ? h('small', null, l.company) : null),
+        h('td', null, l.phone || '—', l.email ? h('small', null, l.email) : null),
+        h('td', null, l.interest || '—'),
+        h('td', null, l.source || '—'),
+        h('td', null, BZ.chip('lead', l.status)),
+        h('td', null, staffName(l.owner_id)),
+        h('td', { class: isOverdue(l) ? 'overdue' : null }, l.next_follow_up_at ? fmt.dateTime(l.next_follow_up_at) : '—'),
+        h('td', null, fmt.date(l.created_at))));
+    });
+    const pages = Math.max(1, Math.ceil(total / PAGE));
+    pagerInfo.textContent = total ? ('Hiển thị ' + (from + 1) + '–' + Math.min(to + 1, total) + ' / ' + fmt.num(total) + ' · Trang ' + (state.page + 1) + '/' + pages) : '';
+    prevBtn.disabled = state.page === 0;
+    nextBtn.disabled = state.page + 1 >= pages;
+  }
+  function refreshAll() { loadCounts(); loadList(); }
+
+  /* ---------- Chi tiết khách ---------- */
+  function kvRow(label, value) { return [h('dt', null, label), h('dd', null, value === null || value === undefined || value === '' ? '—' : value)]; }
+
+  function openDetail(id) {
+    const body = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '16px' } }, h('p', { class: 'muted' }, 'Đang tải…'));
+    const m = BZ.modal({ title: 'Chi tiết khách tiềm năng', body: body, wide: true, actions: [{ label: 'Đóng', kind: 'ghost' }] });
+    renderDetail(id, body, m);
+  }
+
+  async function renderDetail(id, body, m) {
+    const [lr, ar, or] = await Promise.all([
+      sb.from('leads').select('*').eq('id', id).maybeSingle(),
+      sb.from('lead_activities').select('*').eq('lead_id', id).order('created_at', { ascending: false }),
+      sb.from('orders').select('id,order_code,product_name,plan_name,billing_cycle,total_amount,currency,status,public_token,created_at').eq('lead_id', id).order('created_at', { ascending: false })
+    ]);
+    body.textContent = '';
+    if (lr.error) { body.appendChild(h('div', { class: 'msg err', role: 'alert' }, BZ.errText(lr.error))); return; }
+    const l = lr.data;
+    if (!l) { body.appendChild(h('div', { class: 'msg err', role: 'alert' }, 'Không tìm thấy khách tiềm năng này, hoặc bạn không có quyền xem.')); return; }
+    const title = m.el.querySelector('#mdl-t'); if (title) title.textContent = l.full_name || 'Chi tiết khách tiềm năng';
+
+    /* Liên kết nhanh */
+    const quick = h('div', { class: 'row-actions' },
+      l.phone ? h('a', { class: 'btn btn-ghost btn-sm', href: 'tel:' + l.phone.replace(/[^\d+]/g, '') }, 'Gọi điện') : null,
+      l.email ? h('a', { class: 'btn btn-ghost btn-sm', href: 'mailto:' + l.email }, 'Gửi email') : null,
+      digits(l.phone) ? h('a', { class: 'btn btn-ghost btn-sm', href: 'https://zalo.me/' + digits(l.phone), target: '_blank', rel: 'noopener' }, 'Nhắn Zalo') : null,
+      ctx.can.leads ? h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: function () { openQuote(l, function () { renderDetail(id, body, m); refreshAll(); }); } }, 'Tạo báo giá') : null
+    );
+    body.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' } }, BZ.chip('lead', l.status), h('span', { class: 'grow', style: { flex: '1' } }), quick));
+
+    /* Thông tin */
+    const utm = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].filter(function (k) { return l[k]; }).map(function (k) { return k.replace('utm_', '') + ': ' + l[k]; }).join(' · ');
+    const srcText = [l.source, l.campaign].filter(Boolean).join(' · ');
+    body.appendChild(h('dl', { class: 'kv' },
+      kvRow('Mã yêu cầu', l.request_code),
+      kvRow('Họ tên', l.full_name),
+      kvRow('Công ty', l.company),
+      kvRow('Điện thoại', l.phone),
+      kvRow('Email', l.email),
+      kvRow('Quan tâm', l.interest),
+      kvRow('Quy mô', l.company_size),
+      kvRow('Nhu cầu', l.need ? h('span', { style: { whiteSpace: 'pre-wrap' } }, l.need) : null),
+      kvRow('Thời gian mong muốn', l.preferred_time),
+      kvRow('Nguồn', srcText),
+      kvRow('UTM', utm),
+      kvRow('Trang đến', l.landing_page),
+      kvRow('Giới thiệu từ', l.referrer),
+      kvRow('Phụ trách', staffName(l.owner_id)),
+      kvRow('Hẹn gọi lại', l.next_follow_up_at ? h('span', { class: isOverdue(l) ? 'overdue' : null }, fmt.dateTime(l.next_follow_up_at)) : null),
+      l.status === 'lost' ? kvRow('Lý do không thành', l.lost_reason) : null,
+      kvRow('Ngày tạo', fmt.dateTime(l.created_at)),
+      kvRow('Cập nhật', fmt.dateTime(l.updated_at))
+    ));
+
+    /* Sửa nhanh */
+    if (ctx.can.leads) body.appendChild(editForm(l, function () { renderDetail(id, body, m); refreshAll(); }));
+
+    /* Báo giá đã tạo */
+    const qSec = h('section', { class: 'lead-sec' }, h('h3', null, 'Báo giá đã tạo'));
+    if (or.error) qSec.appendChild(h('div', { class: 'msg err' }, BZ.errText(or.error)));
+    else if (!or.data.length) qSec.appendChild(h('p', { class: 'muted' }, 'Chưa có báo giá nào cho khách này.'));
+    else qSec.appendChild(h('div', { class: 'table-wrap' }, h('table', { class: 't', style: { minWidth: '560px' } },
+      h('thead', null, h('tr', null, ['Mã', 'Gói', 'Tổng', 'Trạng thái', ''].map(function (t) { return h('th', null, t); }))),
+      h('tbody', null, or.data.map(function (o) {
+        return h('tr', null,
+          h('td', null, h('a', { href: '/admin/orders.html#' + o.id }, o.order_code || '—'), h('small', null, fmt.date(o.created_at))),
+          h('td', null, [o.product_name, o.plan_name].filter(Boolean).join(' – ') || '—', h('small', null, fmt.cycle(o.billing_cycle))),
+          h('td', { class: 'num' }, fmt.money(o.total_amount, o.currency)),
+          h('td', null, BZ.chip('order', o.status)),
+          h('td', null, o.public_token ? h('a', { href: location.origin + '/bao-gia/?t=' + encodeURIComponent(o.public_token), target: '_blank', rel: 'noopener' }, 'Link khách') : '—'));
+      })))));
+    body.appendChild(qSec);
+
+    /* Ghi chú + dòng thời gian */
+    const tSec = h('section', { class: 'lead-sec' }, h('h3', null, 'Hoạt động'));
+    if (ctx.can.leads) tSec.appendChild(noteForm(l.id, function () { renderDetail(id, body, m); }));
+    if (ar.error) tSec.appendChild(h('div', { class: 'msg err' }, BZ.errText(ar.error)));
+    else if (!ar.data.length) tSec.appendChild(h('p', { class: 'muted' }, 'Chưa có hoạt động nào.'));
+    else tSec.appendChild(h('ul', { class: 'timeline' }, ar.data.map(function (a) {
+      let text = a.content || '';
+      if (a.activity_type === 'status_change' && (a.old_value || a.new_value)) text = statusLabel(a.old_value) + ' → ' + statusLabel(a.new_value) + (text ? ' · ' + text : '');
+      else if (a.activity_type === 'assignment' && (a.old_value || a.new_value)) {
+        const nm = function (v) { return v && v !== '—' ? (UUID_RE.test(v) ? staffName(v) : v) : 'Chưa phân công'; };
+        text = nm(a.old_value) + ' → ' + nm(a.new_value) + (text ? ' · ' + text : '');
+      }
+      const who = a.actor_id ? staffName(a.actor_id) : 'Hệ thống';
+      return h('li', null,
+        h('b', null, ACT_LABEL[a.activity_type] || a.activity_type || 'Hoạt động'),
+        text ? h('div', { style: { whiteSpace: 'pre-wrap' } }, text) : null,
+        h('small', null, who + ' · ' + fmt.dateTime(a.created_at)));
+    })));
+    body.appendChild(tSec);
+  }
+
+  function editForm(l, done) {
+    const st = h('select', null, STATUSES.map(function (s) { return h('option', { value: s, selected: s === l.status }, statusLabel(s)); }));
+    const owner = h('select', null, h('option', { value: '' }, '— Chưa phân công —'),
+      staff.filter(function (s) { return s.active || s.id === l.owner_id; }).map(function (s) {
+        return h('option', { value: s.id, selected: s.id === l.owner_id }, s.name + (s.active ? '' : ' (ngừng hoạt động)'));
+      }));
+    if (l.owner_id && !staffMap[l.owner_id]) owner.appendChild(h('option', { value: l.owner_id, selected: true }, 'Nhân sự khác'));
+    const follow = h('input', { type: 'datetime-local', value: isoToLocal(l.next_follow_up_at) });
+    const lost = h('textarea', { maxlength: '500', placeholder: 'Ví dụ: khách chọn nhà cung cấp khác, ngân sách chưa phù hợp…' }, l.lost_reason || '');
+    const lostField = BZ.field('Lý do không thành (bắt buộc)', lost);
+    lostField.classList.add('span2');
+    function syncLost() { lostField.hidden = st.value !== 'lost'; }
+    st.addEventListener('change', syncLost); syncLost();
+    const msg = h('div', { class: 'msg err', role: 'alert', hidden: true });
+    const save = h('button', { type: 'button', class: 'btn btn-primary' }, 'Lưu thay đổi');
+    save.addEventListener('click', async function () {
+      msg.hidden = true;
+      const reason = lost.value.trim();
+      if (st.value === 'lost' && !reason) { msg.textContent = 'Vui lòng nhập lý do không thành.'; msg.hidden = false; lost.focus(); return; }
+      const patch = {
+        status: st.value,
+        owner_id: owner.value || null,
+        next_follow_up_at: localToIso(follow.value),
+        lost_reason: st.value === 'lost' ? reason : null
+      };
+      save.disabled = true;
+      try {
+        const r = await sb.from('leads').update(patch).eq('id', l.id).select('id');
+        if (r.error) throw r.error;
+        if (!r.data || !r.data.length) throw new Error('Tài khoản của bạn không có quyền thực hiện thao tác này.');
+        BZ.toast('Đã lưu thay đổi.', 'ok');
+        done();
+      } catch (e) { msg.textContent = BZ.errText(e); msg.hidden = false; save.disabled = false; }
+    });
+    return h('section', { class: 'lead-sec' }, h('h3', null, 'Cập nhật chăm sóc'), msg,
+      h('div', { class: 'form-grid' },
+        BZ.field('Trạng thái', st),
+        BZ.field('Người phụ trách', owner),
+        BZ.field('Hẹn gọi lại', follow, 'Theo giờ trên máy của bạn. Để trống nếu chưa hẹn.'),
+        lostField),
+      h('div', null, save));
+  }
+
+  function noteForm(leadId, done) {
+    const type = h('select', null, ['note', 'call', 'email', 'meeting'].map(function (t) { return h('option', { value: t }, ACT_LABEL[t]); }));
+    const content = h('textarea', { maxlength: '2000', placeholder: 'Nội dung trao đổi, kết quả cuộc gọi, việc cần làm tiếp…' });
+    const msg = h('div', { class: 'msg err', role: 'alert', hidden: true });
+    const btn = h('button', { type: 'button', class: 'btn btn-ghost' }, 'Thêm ghi chú');
+    btn.addEventListener('click', async function () {
+      msg.hidden = true;
+      const text = content.value.trim();
+      if (!text) { msg.textContent = 'Vui lòng nhập nội dung ghi chú.'; msg.hidden = false; content.focus(); return; }
+      btn.disabled = true;
+      try {
+        const r = await sb.from('lead_activities').insert({ lead_id: leadId, actor_id: ctx.user.id, activity_type: type.value, content: text });
+        if (r.error) throw r.error;
+        BZ.toast('Đã thêm ghi chú.', 'ok');
+        done();
+      } catch (e) { msg.textContent = BZ.errText(e); msg.hidden = false; btn.disabled = false; }
+    });
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px' } }, msg,
+      h('div', { class: 'form-grid' }, BZ.field('Loại', type), h('div'), (function () { const f = BZ.field('Nội dung', content); f.classList.add('span2'); return f; })()),
+      h('div', null, btn));
+  }
+
+  /* ---------- Tạo báo giá ---------- */
+  let plansCache = null;
+  async function loadPlans() {
+    if (plansCache) return plansCache;
+    const [pr, pp] = await Promise.all([
+      sb.from('products').select('id,name,code').order('name'),
+      sb.from('product_plans').select('id,product_id,plan_code,name,billing_cycle,price_amount,sale_price_amount,price_display,is_active').eq('is_active', true).order('price_amount', { ascending: true, nullsFirst: false })
+    ]);
+    if (pr.error) throw pr.error;
+    if (pp.error) throw pp.error;
+    const groups = pr.data.map(function (p) { return { product: p, plans: pp.data.filter(function (x) { return x.product_id === p.id; }) }; }).filter(function (g) { return g.plans.length; });
+    plansCache = groups;
+    return groups;
+  }
+  function planPrice(p) { return p.sale_price_amount !== null && p.sale_price_amount !== undefined ? p.sale_price_amount : p.price_amount; }
+
+  async function openQuote(lead, onCreated) {
+    const body = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px' } }, h('p', { class: 'muted' }, 'Đang tải danh sách gói…'));
+    let created = false;
+    const m = BZ.modal({ title: 'Tạo báo giá cho ' + (lead.full_name || 'khách'), body: body, actions: [
+      { label: 'Đóng', kind: 'ghost' },
+      { label: 'Tạo báo giá', kind: 'primary', onClick: async function (close, msg) { await submit(msg); } }
+    ] });
+    const submitBtn = m.el.querySelectorAll('.modal-f button')[1];
+    submitBtn.disabled = true;
+
+    let groups;
+    try { groups = await loadPlans(); }
+    catch (e) { body.textContent = ''; body.appendChild(h('div', { class: 'msg err', role: 'alert' }, BZ.errText(e))); return; }
+    body.textContent = '';
+    if (!groups.length) { body.appendChild(h('div', { class: 'msg info' }, 'Chưa có gói dịch vụ nào đang bán. Hãy bật gói trong phần sản phẩm trước.')); return; }
+
+    const byId = {};
+    const planSel = h('select', null, h('option', { value: '' }, '— Chọn gói —'), groups.map(function (g) {
+      return h('optgroup', { label: g.product.name || g.product.code || 'Sản phẩm' }, g.plans.map(function (p) {
+        byId[p.id] = { plan: p, product: g.product };
+        const price = p.price_display || (planPrice(p) !== null && planPrice(p) !== undefined ? fmt.money(planPrice(p)) : 'Liên hệ');
+        return h('option', { value: p.id }, p.name + ' · ' + fmt.cycle(p.billing_cycle) + ' · ' + price);
+      }));
+    }));
+    const unit = h('input', { type: 'number', min: '0', step: '1000', inputmode: 'numeric' });
+    const disc = h('input', { type: 'number', min: '0', step: '1000', inputmode: 'numeric', value: '0' });
+    const note = h('textarea', { maxlength: '1000', placeholder: 'Ghi chú hiển thị trên báo giá (không bắt buộc)' });
+    const unitHint = h('small', { class: 'muted' }, 'Mặc định theo giá gói.');
+    const preview = h('div', { class: 'msg info' }, 'Tạm tính: —');
+    const unitField = h('div', { class: 'field' }, h('label', { for: 'q-unit' }, 'Đơn giá (đ)'), unit, unitHint); unit.id = 'q-unit';
+    const noteField = BZ.field('Ghi chú', note); noteField.classList.add('span2');
+    const planField = BZ.field('Gói dịch vụ', planSel); planField.classList.add('span2');
+    const form = h('div', { class: 'form-grid' }, planField, unitField, BZ.field('Chiết khấu (đ)', disc), noteField);
+    body.append(form, preview);
+
+    function num(v) { return v === '' ? null : Math.round(Number(v)); }
+    function updPreview() {
+      const u = num(unit.value), d = num(disc.value) || 0;
+      if (u === null || isNaN(u)) { preview.textContent = 'Tạm tính: —'; return; }
+      preview.textContent = 'Tạm tính: ' + fmt.money(Math.max(0, u - d)) + ' (đơn giá ' + fmt.money(u) + ' − chiết khấu ' + fmt.money(d) + '). Tổng cuối có thể cộng phí triển khai và thuế theo gói.';
+    }
+    planSel.addEventListener('change', function () {
+      const x = byId[planSel.value];
+      submitBtn.disabled = !x || created;
+      if (!x) { unit.value = ''; unitHint.textContent = 'Mặc định theo giá gói.'; updPreview(); return; }
+      const p = planPrice(x.plan);
+      if (p !== null && p !== undefined) { unit.value = String(p); unitHint.textContent = 'Mặc định theo giá gói: ' + fmt.money(p) + '.'; }
+      else { unit.value = ''; unitHint.textContent = 'Gói này chưa có giá – bắt buộc nhập đơn giá.'; }
+      updPreview();
+    });
+    unit.addEventListener('input', updPreview); disc.addEventListener('input', updPreview);
+
+    async function submit(msg) {
+      if (created) return;
+      const x = byId[planSel.value];
+      if (!x) throw new Error('Vui lòng chọn gói dịch vụ.');
+      const p = planPrice(x.plan);
+      const u = num(unit.value), d = num(disc.value);
+      if ((p === null || p === undefined) && (u === null)) throw new Error('Gói này chưa có giá. Vui lòng nhập đơn giá.');
+      if (u !== null && (isNaN(u) || u < 0)) throw new Error('Đơn giá không hợp lệ.');
+      if (d !== null && (isNaN(d) || d < 0)) throw new Error('Chiết khấu không hợp lệ.');
+      if (u !== null && d !== null && d > u) throw new Error('Chiết khấu không được lớn hơn đơn giá.');
+      void msg;
+      const res = await BZ.rpc('staff_create_quote', {
+        _lead: lead.id, _plan: x.plan.id, _unit_amount: u, _discount: d || 0, _note: note.value.trim() || null
+      });
+      const out = Array.isArray(res) ? res[0] : res;
+      if (!out || !out.public_token) throw new Error('Máy chủ không trả về thông tin báo giá. Vui lòng kiểm tra trong mục Báo giá & đơn hàng.');
+      created = true;
+      submitBtn.hidden = true;
+      showResult(out);
+      BZ.toast('Đã tạo báo giá ' + (out.order_code || '') + '.', 'ok');
+      if (onCreated) onCreated();
+    }
+
+    function showResult(out) {
+      const link = location.origin + '/bao-gia/?t=' + encodeURIComponent(out.public_token);
+      const inp = h('input', { type: 'text', readonly: true, value: link, 'aria-label': 'Link báo giá cho khách' });
+      const copyBtn = h('button', { type: 'button', class: 'btn btn-primary btn-sm' }, 'Sao chép link');
+      copyBtn.addEventListener('click', async function () {
+        try { await navigator.clipboard.writeText(link); BZ.toast('Đã sao chép link báo giá.', 'ok'); }
+        catch (e) { inp.focus(); inp.select(); BZ.toast('Không sao chép tự động được. Link đã được chọn – nhấn Ctrl+C (hoặc giữ để sao chép).', 'err'); }
+      });
+      body.textContent = '';
+      body.append(
+        h('div', { class: 'msg ok' }, 'Đã tạo báo giá ' + (out.order_code || '') + (out.total_amount !== undefined && out.total_amount !== null ? ' · Tổng ' + fmt.money(out.total_amount) : '') + '. Gửi link dưới đây cho khách.'),
+        h('div', { class: 'copy-row' }, inp, copyBtn),
+        h('div', { class: 'row-actions' },
+          h('a', { class: 'btn btn-ghost btn-sm', href: link, target: '_blank', rel: 'noopener' }, 'Mở báo giá'),
+          out.order_id ? h('a', { class: 'btn btn-ghost btn-sm', href: '/admin/orders.html#' + out.order_id }, 'Xem trong Báo giá & đơn hàng') : null)
+      );
+      inp.addEventListener('focus', function () { inp.select(); });
+    }
+  }
+
+  /* ---------- Hash ---------- */
+  function applyHash(initial) {
+    const hs = decodeURIComponent((location.hash || '').slice(1));
+    if (hs === 'new') { state.status = 'new'; state.follow = false; followChk.checked = false; state.page = 0; syncTabs(); if (!initial) loadList(); }
+    else if (hs === 'follow') { state.follow = true; followChk.checked = true; state.page = 0; if (!initial) loadList(); }
+    else if (UUID_RE.test(hs)) { openDetail(hs); }
+  }
+  window.addEventListener('hashchange', function () { applyHash(false); });
+
+  syncTabs();
+  await loadStaff();
+  applyHash(true);
+  loadCounts();
+  await loadList();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0B1B3F">
+<title>Báo giá & thanh toán – BIZTECK</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231D4ED8'/%3E%3Ccircle cx='16' cy='12' r='5' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M16 17v9M10 24c2 2 10 2 12 0' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#F4F6FA; --card:#FFFFFF; --line:#DCE3EE; --line-2:#C3CCDD;
+  --text:#0B1B3F; --text-2:#33405E; --muted:#5B6785;
+  --navy:#0B1B3F; --primary:#1D4ED8; --primary-soft:#E6EDFD; --accent:#F97316;
+  --success:#047857; --success-soft:#E3F4EE; --warning:#8A5300; --warning-soft:#FEF3DC;
+  --danger:#B91C1C; --danger-soft:#FDE8E8; --info:#0369A1; --info-soft:#E3F1F8;
+  --font:'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono:'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 var(--font);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:var(--primary)}
+h1,h2,h3{margin:0;letter-spacing:-.01em;text-wrap:balance}
+p{margin:0}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1080px;margin-inline:auto;padding-inline:16px}
+@media (min-width:700px){.wrap{padding-inline:24px}}
+
+/* header */
+.hdr{background:#fff;border-bottom:1px solid var(--line)}
+.hdr .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:68px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.02em;color:var(--text);text-decoration:none}
+.hot{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);text-decoration:none}
+.hot b{color:var(--text);font-family:var(--mono);font-weight:500}
+@media (max-width:480px){.hot span{display:none}}
+
+/* progress */
+.steps{list-style:none;margin:28px 0 0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));counter-reset:s}
+.steps li{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;font-size:13px;color:var(--muted)}
+.steps li::before{content:"";position:absolute;top:17px;left:calc(-50% + 22px);right:calc(50% + 22px);height:2px;background:var(--line)}
+.steps li:first-child::before{display:none}
+.steps li.done::before,.steps li.cur::before{background:var(--primary)}
+.steps .n{position:relative;z-index:1;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#fff;border:2px solid var(--line-2);font:500 14px var(--mono);color:var(--muted)}
+.steps li.done .n{background:var(--primary);border-color:var(--primary);color:#fff}
+.steps li.cur .n{border-color:var(--primary);color:var(--primary);box-shadow:0 0 0 4px var(--primary-soft)}
+.steps li.done,.steps li.cur{color:var(--text);font-weight:500}
+@media (max-width:520px){.steps li{font-size:11.5px}}
+
+/* layout */
+.page{padding-block:24px 56px;display:flex;flex-direction:column;gap:20px}
+.head h1{font-size:clamp(24px,4vw,30px);font-weight:600}
+.head p{color:var(--muted);font-size:14px;margin-top:4px}
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:880px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:clamp(18px,3vw,26px);min-width:0}
+.card h2{font-size:17px;font-weight:600}
+.card-h{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.side{position:sticky;top:16px;display:flex;flex-direction:column;gap:16px}
+@media (max-width:880px){.side{position:static}}
+
+.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 20px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.meta div small{display:block;font-size:12px;color:var(--muted)}
+.meta div b{display:block;font-weight:500;word-break:break-word}
+@media (max-width:420px){.meta{grid-template-columns:1fr}}
+.items{list-style:none;margin:0;padding:0}
+.items li{padding:16px 0;border-bottom:1px solid var(--line)}
+.it-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.it-top b{font-weight:600}
+.it-top small{display:block;color:var(--muted);font-size:13px;font-weight:400}
+.it-top .mono{white-space:nowrap;font-weight:500}
+.feats{list-style:none;margin:10px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 16px;font-size:13px;color:var(--text-2)}
+.feats li{padding:0;border:0;display:flex;gap:8px;align-items:flex-start}
+.feats li::before{content:"";flex-shrink:0;width:16px;height:16px;margin-top:2px;border-radius:50%;background:var(--success-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.2l2.2 2.2 4.8-4.8' fill='none' stroke='%23047857' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat}
+.sum{margin:16px 0 0;display:grid;gap:8px;font-size:14px}
+.sum div{display:flex;justify-content:space-between;gap:12px}
+.sum dt{color:var(--muted)}
+.sum dd{margin:0;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sum .total{margin-top:6px;padding-top:14px;border-top:1px solid var(--line);align-items:baseline}
+.sum .total dt{color:var(--text);font-weight:600;font-size:15px}
+.sum .total dd{font-size:clamp(22px,4vw,26px);font-weight:500;color:var(--navy)}
+.note{margin-top:16px;padding:12px 14px;border-radius:12px;background:var(--bg);font-size:14px;color:var(--text-2);white-space:pre-line;word-break:break-word}
+
+/* transfer */
+.qr{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px;border:1px dashed var(--line-2);border-radius:14px;margin-bottom:16px}
+.qr img{width:min(240px,100%);height:auto;aspect-ratio:1;object-fit:contain;display:block}
+.qr small{font-size:12px;color:var(--muted);text-align:center}
+.kv{display:grid;gap:10px}
+.kv > div{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--bg)}
+.kv .v{min-width:0}
+.kv small{display:block;font-size:12px;color:var(--muted)}
+.kv b{display:block;font-weight:600;word-break:break-all}
+.kv .must{background:#FFF4EB;border:1px solid #FDBA74}
+.kv .must small{color:#9A3412;font-weight:500}
+.copy{flex-shrink:0;min-height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--line-2);background:#fff;color:var(--primary);font:500 13px var(--font);cursor:pointer}
+.copy:hover{background:var(--primary-soft)}
+.copy.ok{color:var(--success);border-color:var(--success)}
+
+/* form */
+form{display:grid;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13px;font-weight:500;color:var(--text-2)}
+.field input,.field textarea{width:100%;min-height:46px;padding:10px 14px;border-radius:10px;border:1px solid var(--line-2);background:#fff;color:var(--text);font:inherit}
+.field textarea{min-height:80px;resize:vertical}
+.field input:focus,.field textarea:focus{border-color:var(--primary);outline:2px solid rgba(29,78,216,.18);outline-offset:0}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text-2);cursor:pointer}
+.check input{width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:var(--primary)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 22px;border-radius:12px;border:0;font:600 15px var(--font);cursor:pointer;text-decoration:none;width:100%}
+.btn-accent{background:var(--accent);color:var(--navy);box-shadow:0 10px 24px -10px rgba(249,115,22,.7)}
+.btn-accent:hover{background:#EA6A0E}
+.btn-ghost{background:#fff;color:var(--text-2);border:1px solid var(--line-2)}
+.btn[disabled]{opacity:.6;cursor:progress}
+.msg{padding:12px 14px;border-radius:12px;font-size:14px;line-height:1.55}
+.msg.err{background:var(--danger-soft);color:var(--danger)}
+.msg.ok{background:var(--success-soft);color:var(--success)}
+.msg.info{background:var(--info-soft);color:var(--info)}
+.msg.warn{background:var(--warning-soft);color:var(--warning)}
+.msg b{display:block;margin-bottom:2px}
+
+/* states */
+.state{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:clamp(28px,6vw,48px) 20px}
+.state h2{font-size:20px}
+.state p{color:var(--muted);max-width:520px}
+.badge{width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.badge.ok{background:var(--success-soft)}
+.badge.wait{background:var(--warning-soft)}
+.badge.bad{background:var(--danger-soft)}
+.badge.info{background:var(--primary-soft)}
+.spin{width:22px;height:22px;border-radius:50%;border:2.5px solid var(--line-2);border-top-color:var(--primary);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.next{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:10px;text-align:left;width:100%;max-width:440px}
+.next li{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--bg);font-size:14px}
+.next .k{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font:500 12px var(--mono)}
+.chip{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap}
+.chip.warn{background:var(--warning-soft);color:var(--warning)}
+.chip.ok{background:var(--success-soft);color:var(--success)}
+.chip.bad{background:var(--danger-soft);color:var(--danger)}
+.chip.info{background:var(--info-soft);color:var(--info)}
+footer{border-top:1px solid var(--line);padding-block:24px 36px;font-size:13px;color:var(--muted)}
+footer b{color:var(--text);font-weight:600}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="BIZTECK – trang chủ">
+      <svg width="28" height="28" viewBox="0 0 30 30" fill="none" stroke="#1D4ED8" stroke-width="1.6" aria-hidden="true"><circle cx="15" cy="10" r="6"/><path d="M15 16v10M9 24c2 2 10 2 12 0M6 19c4-2 14-2 18 0"/></svg>
+      BIZTECK
+    </a>
+    <a class="hot" id="hot" href="tel:0918566177"><span>Hotline hỗ trợ</span> <b id="hot-n">0918 566 177</b></a>
+  </div>
+</header>
+
+<main class="wrap page" id="app" aria-live="polite">
+  <div class="card state" role="status"><span class="spin" aria-hidden="true"></span><p>Đang tải báo giá…</p></div>
+</main>
+
+<footer>
+  <div class="wrap" id="foot"><b>CÔNG TY MHT BUSINESS SOLUTIONS</b> · Nhà phân phối độc quyền BIZTECK tại Việt Nam<br>95 Nguyễn Thị Minh Khai, Khối 3 Lê Mao, Phường Thành Vinh, Nghệ An · 0918 566 177 · info@mhtbiz.com</div>
+</footer>
+<div class="sr" role="status" aria-live="polite" id="live"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var SUPABASE_URL = 'https://zuucoqfylagcfwnhomet.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_LVQhPQFXraB7C_1i0VtFlw_WndNHxAq';
+  var DEFAULT_PHONE = '0918 566 177';
+  var app = document.getElementById('app');
+  var live = document.getElementById('live');
+  var token = new URLSearchParams(location.search).get('t') || '';
+  var sb = null;
+  var quote = null;
+
+  /* ---------- DOM helper (không dùng innerHTML với dữ liệu) ---------- */
+  function h(tag, attrs) {
+    var el = document.createElement(tag);
+    var kids = Array.prototype.slice.call(arguments, 2);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      var v = attrs[k];
+      if (v === null || v === undefined || v === false) return;
+      if (k === 'class') el.className = v;
+      else if (k.slice(0, 2) === 'on' && typeof v === 'function') el.addEventListener(k.slice(2), v);
+      else if (v === true) el.setAttribute(k, '');
+      else el.setAttribute(k, String(v));
+    });
+    (function add(list) {
+      list.forEach(function (c) {
+        if (c === null || c === undefined || c === false) return;
+        if (Array.isArray(c)) return add(c);
+        el.appendChild(typeof c === 'string' || typeof c === 'number' ? document.createTextNode(String(c)) : c);
+      });
+    })(kids);
+    return el;
+  }
+  /* Biểu tượng tĩnh do mã nguồn định nghĩa */
+  function icon(markup, size) {
+    var t = document.createElement('template');
+    t.innerHTML = '<svg width="' + (size || 28) + '" height="' + (size || 28) + '" viewBox="0 0 24 24" fill="none" aria-hidden="true">' + markup + '</svg>';
+    return t.content.firstChild;
+  }
+  var IC = {
+    ok: '<path d="M5 12.5l4.5 4.5L19 7.5" stroke="#047857" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+    wait: '<circle cx="12" cy="12" r="8.5" stroke="#8A5300" stroke-width="1.8"/><path d="M12 7.5V12l3 2" stroke="#8A5300" stroke-width="1.8" stroke-linecap="round"/>',
+    bad: '<path d="M7 7l10 10M17 7 7 17" stroke="#B91C1C" stroke-width="2.2" stroke-linecap="round"/>',
+    info: '<circle cx="12" cy="12" r="8.5" stroke="#1D4ED8" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="#1D4ED8" stroke-width="2" stroke-linecap="round"/>'
+  };
+
+  /* ---------- Định dạng ---------- */
+  var nf = new Intl.NumberFormat('vi-VN');
+  function money(n, cur) { if (n === null || n === undefined || n === '') return '—'; return nf.format(Number(n)) + ' ' + (cur && cur !== 'VND' ? cur : 'đ'); }
+  function date(d) { if (!d) return '—'; var x = new Date(d); return isNaN(x) ? '—' : x.toLocaleDateString('vi-VN'); }
+  function cycle(c) { return ({ monthly: 'Hằng tháng', yearly: 'Hằng năm', one_time: 'Một lần', custom: 'Theo thỏa thuận' })[c] || c || '—'; }
+  function num(n) { var v = Number(n); return isFinite(v) ? v : 0; }
+  function todayISO(offsetDays) { var d = new Date(); d.setDate(d.getDate() + (offsetDays || 0)); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
+  function phoneHref(p) { return 'tel:' + String(p || '').replace(/[^\d+]/g, ''); }
+
+  /* features: mảng chuỗi, mảng đối tượng, chuỗi JSON, chuỗi nhiều dòng hoặc đối tượng */
+  function features(f, depth) {
+    depth = depth || 0;
+    if (f === null || f === undefined || depth > 3) return [];
+    if (typeof f === 'string') {
+      var s = f.trim(); if (!s) return [];
+      if (s[0] === '[' || s[0] === '{') { try { return features(JSON.parse(s), depth + 1); } catch (e) { /* chuỗi thường */ } }
+      return s.split(/\r?\n|;/).map(function (x) { return x.replace(/^[\s\-•·*]+/, '').trim(); }).filter(Boolean);
+    }
+    if (typeof f === 'number') return [String(f)];
+    if (Array.isArray(f)) {
+      var out = [];
+      f.forEach(function (x) {
+        if (typeof x === 'string' || typeof x === 'number') { var t = String(x).trim(); if (t) out.push(t); }
+        else if (x && typeof x === 'object') {
+          var t2 = x.name || x.label || x.title || x.text || x.feature;
+          if (typeof t2 === 'string' && t2.trim()) out.push(t2.trim() + (x.value !== undefined && typeof x.value !== 'object' && x.value !== true ? ': ' + x.value : ''));
+        }
+      });
+      return out;
+    }
+    if (typeof f === 'object') {
+      if (Array.isArray(f.features) || Array.isArray(f.items)) return features(f.features || f.items, depth + 1);
+      return Object.keys(f).map(function (k) {
+        var v = f[k];
+        if (v === true) return k;
+        if (typeof v === 'string' || typeof v === 'number') return k + ': ' + v;
+        return null;
+      }).filter(Boolean);
+    }
+    return [];
+  }
+
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+    } catch (e) { /* thử cách dự phòng */ }
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta); ta.select();
+      var ok = document.execCommand('copy'); ta.remove(); return ok;
+    } catch (e2) { return false; }
+  }
+  function copyBtn(value, label) {
+    var b = h('button', { type: 'button', class: 'copy', 'aria-label': 'Sao chép ' + label }, 'Sao chép');
+    var timer;
+    b.addEventListener('click', async function () {
+      var ok = await copyText(String(value));
+      clearTimeout(timer);
+      b.textContent = ok ? 'Đã chép' : 'Chưa chép được';
+      b.classList.toggle('ok', ok);
+      live.textContent = ok ? 'Đã sao chép ' + label : 'Không sao chép được, vui lòng chép thủ công';
+      timer = setTimeout(function () { b.textContent = 'Sao chép'; b.classList.remove('ok'); }, 1800);
+    });
+    return b;
+  }
+
+  /* ---------- Khung ---------- */
+  function steps(active, allDone) {
+    var names = ['Chọn giải pháp', 'Nhận báo giá', 'Thanh toán', 'Kích hoạt'];
+    return h('ol', { class: 'steps', 'aria-label': 'Tiến trình đăng ký' }, names.map(function (n, i) {
+      var st = allDone || i < active ? 'done' : (i === active ? 'cur' : '');
+      return h('li', { class: st, 'aria-current': st === 'cur' ? 'step' : null },
+        h('span', { class: 'n' }, st === 'done' ? '✓' : String(i + 1)), h('span', null, n),
+        st === 'done' ? h('span', { class: 'sr' }, ' (đã xong)') : null);
+    }));
+  }
+  function stateCard(kind, title, text, extra) {
+    return h('section', { class: 'card state' }, h('span', { class: 'badge ' + kind }, icon(IC[kind] || IC.info)), h('h2', null, title), text ? h('p', null, text) : null, extra || null);
+  }
+  function hotline() {
+    var p = (quote && quote.company && quote.company.phone) || DEFAULT_PHONE;
+    return h('a', { href: phoneHref(p) }, p);
+  }
+  function contactLine() {
+    var email = (quote && quote.company && quote.company.email) || 'info@mhtbiz.com';
+    return h('p', null, 'Cần hỗ trợ? Gọi hotline ', hotline(), ' hoặc email ', h('a', { href: 'mailto:' + email }, email), '.');
+  }
+  function show() { app.textContent = ''; Array.prototype.slice.call(arguments).forEach(function (n) { if (n) app.appendChild(n); }); }
+
+  function notFound() {
+    document.title = 'Không tìm thấy báo giá – BIZTECK';
+    show(stateCard('info', 'Không tìm thấy báo giá', 'Đường dẫn có thể đã sai hoặc báo giá không còn hiệu lực. Vui lòng kiểm tra lại đường dẫn trong tin nhắn, hoặc liên hệ nhân viên tư vấn để được gửi lại.',
+      contactLine()));
+  }
+  function loadError() {
+    show(stateCard('bad', 'Chưa tải được báo giá', 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.',
+      h('button', { type: 'button', class: 'btn btn-ghost', style: 'width:auto', onclick: load }, 'Thử lại')));
+  }
+
+  /* ---------- Chi tiết báo giá ---------- */
+  function quoteCard(q) {
+    var cur = q.currency;
+    var items = Array.isArray(q.items) ? q.items : [];
+    var list = h('ul', { class: 'items' }, items.map(function (it) {
+      var feats = features(it.features);
+      var qty = num(it.quantity) || 1;
+      return h('li', null,
+        h('div', { class: 'it-top' },
+          h('div', null, h('b', null, it.name || q.product_name || 'Gói dịch vụ'),
+            h('small', null, money(it.unit_amount, cur) + (qty !== 1 ? ' × ' + qty : '') + ' · ' + cycle(q.billing_cycle))),
+          h('span', { class: 'mono' }, money(it.line_amount !== undefined && it.line_amount !== null ? it.line_amount : num(it.unit_amount) * qty, cur))),
+        feats.length ? h('ul', { class: 'feats', 'aria-label': 'Tính năng' }, feats.map(function (t) { return h('li', null, t); })) : null);
+    }));
+    if (!items.length) list.appendChild(h('li', null, h('div', { class: 'it-top' }, h('div', null, h('b', null, [q.product_name, q.plan_name].filter(Boolean).join(' – ') || 'Gói dịch vụ'), h('small', null, cycle(q.billing_cycle))), h('span', { class: 'mono' }, money(q.subtotal_amount, cur)))));
+
+    /* tax_rate trong CSDL là số nguyên phần trăm (0, 8, 10…) */
+    var rate = num(q.tax_rate); var rateTxt = rate > 0 ? ' (' + nf.format(rate) + '%)' : '';
+    var rows = [['Tạm tính', money(q.subtotal_amount, cur)]];
+    if (num(q.setup_fee_amount) > 0) rows.push(['Phí cài đặt', money(q.setup_fee_amount, cur)]);
+    if (num(q.discount_amount) > 0) rows.push(['Chiết khấu', '−' + money(q.discount_amount, cur)]);
+    if (num(q.tax_amount) > 0 || rate > 0) rows.push(['Thuế GTGT' + rateTxt, money(q.tax_amount, cur)]);
+    var sum = h('dl', { class: 'sum' }, rows.map(function (r) { return h('div', null, h('dt', null, r[0]), h('dd', null, r[1])); }),
+      h('div', { class: 'total' }, h('dt', null, 'Tổng thanh toán'), h('dd', null, money(q.total_amount, cur))));
+
+    return h('section', { class: 'card', 'aria-labelledby': 'q-h' },
+      h('div', { class: 'card-h' }, h('h2', { id: 'q-h' }, 'Chi tiết báo giá'), statusChip(q)),
+      h('div', { class: 'meta' },
+        h('div', null, h('small', null, 'Mã báo giá'), h('b', { class: 'mono' }, q.order_code || '—')),
+        h('div', null, h('small', null, 'Ngày lập'), h('b', null, date(q.created_at))),
+        h('div', null, h('small', null, 'Khách hàng'), h('b', null, q.customer_name || q.contact_name || '—'), q.customer_name && q.contact_name && q.customer_name !== q.contact_name ? h('small', null, 'Người liên hệ: ' + q.contact_name) : null),
+        h('div', null, h('small', null, 'Giải pháp'), h('b', null, [q.product_name, q.plan_name].filter(Boolean).join(' · ') || '—'), h('small', null, 'Chu kỳ: ' + cycle(q.billing_cycle)))),
+      list, sum,
+      q.note ? h('div', { class: 'note' }, h('b', null, 'Ghi chú: '), String(q.note)) : null);
+  }
+  function statusChip(q) {
+    var s = q.status, p = q.payment_status;
+    if (s === 'pending_payment') {
+      if (p === 'submitted') return h('span', { class: 'chip warn' }, 'Đang đối soát');
+      if (p === 'rejected') return h('span', { class: 'chip bad' }, 'Cần chuyển khoản lại');
+      return h('span', { class: 'chip warn' }, 'Chờ thanh toán');
+    }
+    if (s === 'paid' || s === 'processing' || s === 'completed') return h('span', { class: 'chip ok' }, 'Đã thanh toán');
+    if (s === 'cancelled') return h('span', { class: 'chip bad' }, 'Đã hủy');
+    if (s === 'refunded') return h('span', { class: 'chip bad' }, 'Đã hoàn tiền');
+    return h('span', { class: 'chip info' }, 'Đang chuẩn bị');
+  }
+
+  /* ---------- Khối chuyển khoản ---------- */
+  function transferCard(q) {
+    var b = q.bank || {};
+    var cur = q.currency;
+    var hasBank = !!(b.account_no && (b.bank_name || b.bank_bin));
+    var content = [];
+    if (b.bank_bin && b.account_no) {
+      var src = 'https://img.vietqr.io/image/' + encodeURIComponent(b.bank_bin) + '-' + encodeURIComponent(b.account_no) + '-compact2.png'
+        + '?amount=' + encodeURIComponent(Math.round(num(q.total_amount))) + '&addInfo=' + encodeURIComponent(q.order_code || '')
+        + '&accountName=' + encodeURIComponent(b.account_name || '');
+      var img = h('img', { src: src, alt: 'Mã QR chuyển khoản', width: '240', height: '240', loading: 'lazy', decoding: 'async' });
+      var qr = h('div', { class: 'qr' }, img, h('small', null, 'Mở app ngân hàng, chọn Quét QR. Số tiền và nội dung đã điền sẵn.'));
+      img.addEventListener('error', function () { qr.remove(); });
+      content.push(qr);
+    }
+    if (hasBank) {
+      content.push(h('div', { class: 'kv' },
+        h('div', null, h('div', { class: 'v' }, h('small', null, 'Ngân hàng'), h('b', null, b.bank_name || ('Mã BIN ' + b.bank_bin)))),
+        h('div', null, h('div', { class: 'v' }, h('small', null, 'Số tài khoản'), h('b', { class: 'mono' }, b.account_no)), copyBtn(b.account_no, 'số tài khoản')),
+        b.account_name ? h('div', null, h('div', { class: 'v' }, h('small', null, 'Chủ tài khoản'), h('b', null, b.account_name))) : null,
+        h('div', null, h('div', { class: 'v' }, h('small', null, 'Số tiền'), h('b', { class: 'mono' }, money(q.total_amount, cur))), copyBtn(Math.round(num(q.total_amount)), 'số tiền')),
+        h('div', { class: 'must' }, h('div', { class: 'v' }, h('small', null, 'Nội dung chuyển khoản (bắt buộc)'), h('b', { class: 'mono' }, q.order_code || '—')), q.order_code ? copyBtn(q.order_code, 'nội dung chuyển khoản') : null)));
+      content.push(h('p', { style: 'margin-top:12px;font-size:13px;color:var(--muted)' }, 'Ghi đúng nội dung ', h('b', { class: 'mono', style: 'color:var(--text)' }, q.order_code || ''), ' để kế toán đối soát nhanh. Sai nội dung có thể làm chậm việc kích hoạt.'));
+    } else {
+      content.push(h('div', { class: 'msg info' }, h('b', null, 'Vui lòng liên hệ hotline để nhận thông tin chuyển khoản'), 'Gọi ', hotline(), ' – nhân viên sẽ gửi số tài khoản cho bạn. Nội dung chuyển khoản: ', h('b', { class: 'mono', style: 'display:inline' }, q.order_code || '')));
+    }
+    return h('section', { class: 'card', 'aria-labelledby': 't-h' }, h('div', { class: 'card-h' }, h('h2', { id: 't-h' }, 'Chuyển khoản ngân hàng')), content);
+  }
+
+  function reportForm(q, rejected) {
+    var name = h('input', { id: 'rp-name', type: 'text', maxlength: '120', autocomplete: 'name', required: true });
+    if (q.contact_name) name.value = q.contact_name;
+    var d = h('input', { id: 'rp-date', type: 'date', required: true, min: todayISO(-60), max: todayISO() }); d.value = todayISO();
+    var note = h('textarea', { id: 'rp-note', maxlength: '500', placeholder: 'Ví dụ: chuyển từ tài khoản công ty, mã giao dịch…' });
+    var agree = h('input', { type: 'checkbox', id: 'rp-agree' });
+    var err = h('div', { class: 'msg err', role: 'alert', hidden: true });
+    var btn = h('button', { type: 'submit', class: 'btn btn-accent' }, 'Xác nhận đã chuyển khoản');
+    var form = h('form', { novalidate: true },
+      h('div', { class: 'field' }, h('label', { for: 'rp-name' }, 'Tên người / đơn vị chuyển khoản *'), name),
+      h('div', { class: 'field' }, h('label', { for: 'rp-date' }, 'Ngày chuyển *'), d),
+      h('div', { class: 'field' }, h('label', { for: 'rp-note' }, 'Ghi chú'), note),
+      h('label', { class: 'check', for: 'rp-agree' }, agree, h('span', null, 'Tôi xác nhận đã chuyển khoản đúng số tiền, đúng nội dung và đồng ý với điều khoản sử dụng dịch vụ BIZTECK.')),
+      err, btn);
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault(); err.hidden = true;
+      function bad(t, el) { err.textContent = t; err.hidden = false; if (el) el.focus(); }
+      var n = name.value.trim().replace(/\s+/g, ' ');
+      if (n.length < 2) return bad('Vui lòng nhập tên người hoặc đơn vị đã chuyển khoản.', name);
+      if (!d.value) return bad('Vui lòng chọn ngày chuyển khoản.', d);
+      if (d.value > todayISO()) return bad('Ngày chuyển không được sau hôm nay.', d);
+      if (d.value < todayISO(-60)) return bad('Ngày chuyển chỉ được trong vòng 60 ngày gần đây.', d);
+      if (!agree.checked) return bad('Vui lòng đánh dấu xác nhận và đồng ý điều khoản.', agree);
+      btn.disabled = true; btn.textContent = 'Đang gửi…';
+      try {
+        var r = await sb.rpc('public_quote_report_transfer', { _token: token, _payer_name: n, _transferred_at: d.value, _note: note.value.trim() || null });
+        if (r.error) throw r.error;
+        thanks(r.data === 'already_submitted');
+      } catch (ex) {
+        var m = (ex && ex.message) || '';
+        bad(/Failed to fetch|NetworkError/i.test(m) ? 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.'
+          : (/[à-ỹđ]/i.test(m) ? m : 'Chưa gửi được xác nhận. Vui lòng thử lại hoặc gọi hotline.'));
+        btn.disabled = false; btn.textContent = 'Xác nhận đã chuyển khoản';
+      }
+    });
+    return h('section', { class: 'card', 'aria-labelledby': 'f-h' },
+      h('div', { class: 'card-h' }, h('h2', { id: 'f-h' }, rejected ? 'Gửi lại xác nhận chuyển khoản' : 'Tôi đã chuyển khoản')),
+      h('p', { style: 'font-size:14px;color:var(--muted);margin:-6px 0 14px' }, 'Sau khi chuyển khoản, gửi xác nhận để kế toán đối soát và kích hoạt tài khoản cho bạn.'),
+      form);
+  }
+
+  function thanks(already) {
+    quote.payment_status = 'submitted';
+    render();
+    var box = app.querySelector('.side');
+    if (box) {
+      box.textContent = '';
+      box.append(stateCard('ok', already ? 'Chúng tôi đã nhận xác nhận trước đó' : 'Cảm ơn bạn! Đã nhận xác nhận chuyển khoản', null,
+        h('ol', { class: 'next' },
+          h('li', null, h('span', { class: 'k' }, '1'), h('span', null, 'Kế toán MHT BIZ đối soát giao dịch trong giờ làm việc.')),
+          h('li', null, h('span', { class: 'k' }, '2'), h('span', null, 'Khi khớp, hệ thống kích hoạt gói dịch vụ của bạn.')),
+          h('li', null, h('span', { class: 'k' }, '3'), h('span', null, 'Thông tin tài khoản đăng nhập được gửi qua email bạn đã đăng ký.')))), contactLine());
+      var first = box.querySelector('h2'); if (first) { first.setAttribute('tabindex', '-1'); first.focus(); }
+      if (window.matchMedia('(max-width:880px)').matches) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  /* ---------- Hiển thị theo trạng thái ---------- */
+  function render() {
+    var q = quote;
+    document.title = 'Báo giá ' + (q.order_code || '') + ' – BIZTECK';
+    if (q.company && q.company.phone) {
+      document.getElementById('hot').setAttribute('href', phoneHref(q.company.phone));
+      document.getElementById('hot-n').textContent = q.company.phone;
+    }
+    if (q.company && q.company.name) {
+      var foot = document.getElementById('foot'); foot.textContent = '';
+      foot.append(h('b', null, q.company.name), ' · Nhà phân phối độc quyền BIZTECK tại Việt Nam', h('br'),
+        [q.company.address, q.company.phone, q.company.email].filter(Boolean).join(' · '));
+    }
+    var s = q.status, p = q.payment_status;
+    var side = h('div', { class: 'side' });
+    var active = 2, allDone = false;
+    if (s === 'pending_payment') {
+      if (p === 'submitted') {
+        side.append(stateCard('wait', 'Đã nhận thông báo chuyển khoản, đang đối soát', 'Kế toán sẽ kiểm tra giao dịch trong giờ làm việc. Khi khớp, bạn sẽ nhận thông tin tài khoản qua email.', contactLine()));
+      } else {
+        if (p === 'rejected') side.append(h('div', { class: 'msg err', role: 'alert' }, h('b', null, 'Chưa xác nhận được khoản chuyển trước đó'),
+          q.payment_rejected_reason ? 'Lý do: ' + q.payment_rejected_reason : 'Vui lòng kiểm tra lại giao dịch và gửi lại xác nhận.'));
+        side.append(transferCard(q), reportForm(q, p === 'rejected'));
+      }
+    } else if (s === 'paid' || s === 'processing') {
+      active = 3;
+      side.append(stateCard('ok', 'Đã thanh toán', s === 'processing' ? 'Đội ngũ MHT BIZ đang khởi tạo và cấu hình hệ thống cho bạn. Thông tin đăng nhập sẽ được gửi qua email.' : 'Cảm ơn bạn! Chúng tôi đang chuẩn bị kích hoạt tài khoản. Thông tin đăng nhập sẽ được gửi qua email.', contactLine()));
+    } else if (s === 'completed') {
+      allDone = true;
+      side.append(stateCard('ok', 'Đã thanh toán và kích hoạt', 'Tài khoản của bạn đã sẵn sàng. Kiểm tra email để nhận thông tin đăng nhập.', contactLine()));
+    } else if (s === 'cancelled') {
+      side.append(stateCard('bad', 'Báo giá đã hủy', 'Báo giá này không còn hiệu lực. Liên hệ nhân viên tư vấn nếu bạn muốn nhận báo giá mới.', contactLine()));
+    } else if (s === 'refunded') {
+      side.append(stateCard('bad', 'Đơn hàng đã hoàn tiền', 'Khoản thanh toán cho báo giá này đã được hoàn lại. Liên hệ chúng tôi nếu cần hỗ trợ thêm.', contactLine()));
+    } else {
+      active = 1;
+      side.append(stateCard('info', 'Báo giá đang được chuẩn bị', 'Nhân viên tư vấn sẽ gửi thông báo khi báo giá sẵn sàng để thanh toán.', contactLine()));
+    }
+    var head = h('div', { class: 'head' },
+      h('h1', null, s === 'pending_payment' && p !== 'submitted' ? 'Xác nhận báo giá & thanh toán' : 'Báo giá ' + (q.order_code || '')),
+      h('p', null, 'Xin chào ' + (q.contact_name || q.customer_name || 'quý khách') + ', dưới đây là báo giá BIZTECK dành cho bạn.'));
+    show(steps(active, allDone), head, h('div', { class: 'grid' }, quoteCard(q), side));
+  }
+
+  async function load() {
+    show(h('div', { class: 'card state', role: 'status' }, h('span', { class: 'spin', 'aria-hidden': 'true' }), h('p', null, 'Đang tải báo giá…')));
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) return notFound();
+    try {
+      if (!sb) {
+        if (!window.supabase || !window.supabase.createClient) throw new Error('Failed to fetch');
+        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+      }
+      var r = await sb.rpc('public_quote', { _token: token });
+      if (r.error) {
+        if (/invalid input syntax|not found/i.test(r.error.message || '')) return notFound();
+        throw r.error;
+      }
+      if (!r.data || typeof r.data !== 'object') return notFound();
+      quote = r.data;
+      render();
+    } catch (e) { loadError(); }
+  }
+  load();
+})();
+</script>
+</body>
+</html>

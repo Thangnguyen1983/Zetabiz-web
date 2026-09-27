@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Cài đặt – Quản trị BIZTECK</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231D4ED8'/%3E%3Ccircle cx='16' cy='12' r='5' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M16 17v9M10 24c2 2 10 2 12 0' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>
+.panel{display:flex;flex-direction:column;gap:16px}
+.field input[readonly],.field select:disabled,.field textarea[readonly]{background:#F4F6FA;color:var(--text-2)}
+.form-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:4px}
+.bin-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:8px}
+.roles{display:grid;gap:8px}
+.roles label{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.roles label:hover{background:#F8FAFD}
+.roles input{width:18px;height:18px;margin-top:2px;flex-shrink:0}
+.roles b{display:block;font-size:14px;font-weight:600}
+.roles small{display:block;font-size:12px;color:var(--muted)}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.copy-box{width:100%;min-height:110px;padding:10px 12px;border-radius:10px;border:1px solid var(--line-2);font:14px/1.5 var(--font);color:var(--text);background:#F8FAFD;resize:vertical}
+.mono{font-family:var(--mono)}
+@media (max-width:600px){.bin-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-page="settings">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, fmt = BZ.fmt, sb = ctx.sb, main = ctx.main;
+  main.appendChild(BZ.pageHead('Cài đặt', 'Thông tin doanh nghiệp, tài khoản nhận tiền, nhân sự và tài khoản của bạn'));
+
+  /* ---------- Tiện ích ---------- */
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+    } catch (e) { /* thử cách dự phòng */ }
+    try {
+      const ta = h('textarea', { style: { position: 'fixed', left: '-9999px', top: '0' } });
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand('copy'); ta.remove(); return ok;
+    } catch (e) { return false; }
+  }
+  function input(attrs, value) {
+    const el = h('input', Object.assign({ type: 'text' }, attrs || {}));
+    el.value = value == null ? '' : String(value);
+    return el;
+  }
+  function stripVN(s) {
+    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+  }
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  async function loadSetting(key) {
+    const r = await sb.from('settings').select('key,value,is_public').eq('key', key).maybeSingle();
+    if (r.error) throw r.error;
+    return r.data;
+  }
+  function loadingNode() { return h('p', { class: 'muted', role: 'status' }, 'Đang tải…'); }
+  function errNode(e, retry) {
+    return h('div', { class: 'msg err', role: 'alert' }, BZ.errText(e), ' ',
+      retry ? h('button', { type: 'button', class: 'link-btn', onclick: retry }, 'Thử lại') : null);
+  }
+
+  /* ---------- Tabs ---------- */
+  const TABS = [
+    { key: 'company', label: 'Doanh nghiệp', render: renderCompany },
+    { key: 'bank', label: 'Thanh toán', render: renderBank },
+    { key: 'staff', label: 'Nhân sự & phân quyền', render: renderStaff },
+    { key: 'me', label: 'Tài khoản của tôi', render: renderMe }
+  ];
+  const tabBar = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Nhóm cài đặt' });
+  const panels = {};
+  const rendered = {};
+  TABS.forEach(function (t, i) {
+    const b = h('button', { type: 'button', role: 'tab', id: 'tab-' + t.key, 'aria-controls': 'pn-' + t.key, 'aria-selected': 'false', tabindex: '-1' }, t.label);
+    b.addEventListener('click', function () { select(t.key, true); });
+    b.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      const n = TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length];
+      select(n.key, true); document.getElementById('tab-' + n.key).focus();
+    });
+    tabBar.appendChild(b);
+    panels[t.key] = h('section', { class: 'panel', role: 'tabpanel', id: 'pn-' + t.key, 'aria-labelledby': 'tab-' + t.key, hidden: true });
+  });
+  main.appendChild(tabBar);
+  TABS.forEach(function (t) { main.appendChild(panels[t.key]); });
+
+  function select(key, push) {
+    if (!panels[key]) key = 'company';
+    TABS.forEach(function (t) {
+      const on = t.key === key;
+      const b = document.getElementById('tab-' + t.key);
+      b.setAttribute('aria-selected', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1;
+      panels[t.key].hidden = !on;
+    });
+    if (push) history.replaceState(null, '', '#' + key);
+    if (!rendered[key]) {
+      rendered[key] = true;
+      const t = TABS.filter(function (x) { return x.key === key; })[0];
+      Promise.resolve().then(function () { return t.render(panels[key]); })
+        .catch(function (e) { panels[key].textContent = ''; panels[key].appendChild(errNode(e)); });
+    }
+  }
+  window.addEventListener('hashchange', function () { select(location.hash.slice(1), false); });
+  select(location.hash.slice(1) || 'company', false);
+
+  /* ================= 1. Doanh nghiệp ================= */
+  async function renderCompany(panel) {
+    panel.textContent = ''; panel.appendChild(loadingNode());
+    let row;
+    try { row = await loadSetting('company'); }
+    catch (e) { panel.textContent = ''; panel.appendChild(errNode(e, function () { renderCompany(panel); })); return; }
+    const old = (row && row.value && typeof row.value === 'object') ? row.value : {};
+    const ro = !ctx.can.admin;
+    const f = {
+      name: input({ maxlength: 200, required: true, readonly: ro, autocomplete: 'organization' }, old.name),
+      slogan: input({ maxlength: 200, readonly: ro }, old.slogan),
+      tax_code: input({ maxlength: 20, readonly: ro, inputmode: 'numeric', class: 'mono' }, old.tax_code),
+      address: input({ maxlength: 300, readonly: ro }, old.address),
+      phone: input({ type: 'tel', maxlength: 30, readonly: ro }, old.phone),
+      email: input({ type: 'email', maxlength: 200, readonly: ro }, old.email),
+      domain: input({ maxlength: 200, readonly: ro, placeholder: 'mhtbiz.com' }, old.domain)
+    };
+    const msg = h('div', { class: 'msg', role: 'status', hidden: true });
+    const save = h('button', { type: 'submit', class: 'btn btn-primary' }, 'Lưu thông tin');
+    const form = h('form', { class: 'card', novalidate: true },
+      h('div', { class: 'card-h' }, h('h2', null, BZ.icon3d('settings'), 'Thông tin doanh nghiệp')),
+      ro ? h('div', { class: 'msg info', style: { marginBottom: '14px' } }, 'Bạn đang xem ở chế độ chỉ đọc. Chỉ Quản trị viên được sửa thông tin này.') : null,
+      h('div', { class: 'form-grid' },
+        h('div', { class: 'span2' }, BZ.field('Tên công ty *', f.name)),
+        h('div', { class: 'span2' }, BZ.field('Thương hiệu / slogan', f.slogan, 'Ví dụ: MHT BIZ – Phần mềm quản lý tích hợp AI')),
+        BZ.field('Mã số thuế', f.tax_code),
+        BZ.field('Tên miền', f.domain, 'Không gồm https://'),
+        h('div', { class: 'span2' }, BZ.field('Địa chỉ', f.address)),
+        BZ.field('Điện thoại', f.phone),
+        BZ.field('Email', f.email)
+      ),
+      h('div', { class: 'form-actions', style: { marginTop: '16px' } }, ro ? null : save, msg),
+      h('p', { class: 'muted', style: { fontSize: '13px', marginTop: '12px' } }, 'Thông tin này hiển thị ở chân trang báo giá gửi khách hàng.')
+    );
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      if (ro) return;
+      msg.hidden = true;
+      const v = {};
+      Object.keys(f).forEach(function (k) { v[k] = f[k].value.trim(); });
+      v.domain = v.domain.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+      if (!v.name) { msg.className = 'msg err'; msg.textContent = 'Vui lòng nhập tên công ty.'; msg.hidden = false; f.name.focus(); return; }
+      if (v.email && !EMAIL_RE.test(v.email)) { msg.className = 'msg err'; msg.textContent = 'Email chưa đúng định dạng.'; msg.hidden = false; f.email.focus(); return; }
+      if (v.tax_code && !/^[0-9]{10}(-[0-9]{3})?$/.test(v.tax_code)) { msg.className = 'msg err'; msg.textContent = 'Mã số thuế gồm 10 chữ số (hoặc 10 số - 3 số cho chi nhánh).'; msg.hidden = false; f.tax_code.focus(); return; }
+      save.disabled = true; save.textContent = 'Đang lưu…';
+      try {
+        const cur = await loadSetting('company');
+        const base = (cur && cur.value && typeof cur.value === 'object') ? cur.value : {};
+        const value = Object.assign({}, base, v);
+        const r = await sb.from('settings').upsert({ key: 'company', value: value, is_public: cur ? cur.is_public : true }, { onConflict: 'key' });
+        if (r.error) throw r.error;
+        BZ.toast('Đã lưu thông tin doanh nghiệp.', 'ok');
+      } catch (err) { msg.className = 'msg err'; msg.textContent = BZ.errText(err); msg.hidden = false; }
+      finally { save.disabled = false; save.textContent = 'Lưu thông tin'; }
+    });
+    panel.textContent = ''; panel.appendChild(form);
+  }
+
+  /* ================= 2. Thanh toán ================= */
+  const BANKS = [
+    ['970436', 'Vietcombank'], ['970415', 'VietinBank'], ['970418', 'BIDV'], ['970405', 'Agribank'], ['970407', 'Techcombank'],
+    ['970422', 'MB Bank'], ['970416', 'ACB'], ['970432', 'VPBank'], ['970423', 'TPBank'], ['970403', 'Sacombank']
+  ];
+  async function renderBank(panel) {
+    panel.textContent = ''; panel.appendChild(loadingNode());
+    let row;
+    try { row = await loadSetting('bank'); }
+    catch (e) { panel.textContent = ''; panel.appendChild(errNode(e, function () { renderBank(panel); })); return; }
+    const old = (row && row.value && typeof row.value === 'object') ? row.value : {};
+    const ro = !ctx.can.admin;
+    const binSel = h('select', { disabled: ro, 'aria-label': 'Chọn ngân hàng phổ biến' },
+      h('option', { value: '' }, '— Chọn ngân hàng —'),
+      BANKS.map(function (b) { return h('option', { value: b[0] }, b[1] + ' · ' + b[0]); }),
+      h('option', { value: 'other' }, 'Ngân hàng khác (tự nhập mã)'));
+    const f = {
+      bank_name: input({ maxlength: 120, readonly: ro }, old.bank_name),
+      bank_bin: input({ maxlength: 6, inputmode: 'numeric', readonly: ro, class: 'mono', placeholder: '6 chữ số', 'aria-label': 'Mã BIN ngân hàng' }, old.bank_bin),
+      account_no: input({ maxlength: 24, inputmode: 'numeric', readonly: ro, class: 'mono', autocomplete: 'off' }, old.account_no),
+      account_name: input({ maxlength: 120, readonly: ro, autocomplete: 'off', style: { textTransform: 'uppercase' } }, old.account_name)
+    };
+    const known = BANKS.some(function (b) { return b[0] === old.bank_bin; });
+    binSel.value = known ? old.bank_bin : (old.bank_bin ? 'other' : '');
+    binSel.addEventListener('change', function () {
+      const v = binSel.value;
+      if (v && v !== 'other') {
+        const prevPreset = BANKS.some(function (b) { return b[1] === f.bank_name.value.trim(); });
+        f.bank_bin.value = v;
+        if (!f.bank_name.value.trim() || prevPreset) f.bank_name.value = BANKS.filter(function (b) { return b[0] === v; })[0][1];
+      } else if (v === 'other') { f.bank_bin.value = ''; f.bank_bin.focus(); }
+      updatePreview();
+    });
+    f.bank_bin.addEventListener('input', function () {
+      f.bank_bin.value = f.bank_bin.value.replace(/\D/g, '').slice(0, 6);
+      const hit = BANKS.some(function (b) { return b[0] === f.bank_bin.value; });
+      binSel.value = hit ? f.bank_bin.value : (f.bank_bin.value ? 'other' : '');
+      updatePreview();
+    });
+    f.account_no.addEventListener('input', function () { f.account_no.value = f.account_no.value.replace(/[^0-9A-Za-z]/g, ''); updatePreview(); });
+    f.account_name.addEventListener('blur', function () { f.account_name.value = stripVN(f.account_name.value).toUpperCase().replace(/\s+/g, ' ').trim(); updatePreview(); });
+    f.account_name.addEventListener('input', updatePreview);
+
+    const preview = h('a', { target: '_blank', rel: 'noopener noreferrer', class: 'btn btn-ghost btn-sm', hidden: true }, 'Xem trước mã QR (mở tab mới)');
+    const previewNote = h('small', { class: 'muted' }, 'Nhập đủ mã BIN và số tài khoản để xem trước mã QR.');
+    function updatePreview() {
+      const bin = f.bank_bin.value.trim(), acc = f.account_no.value.trim();
+      const name = stripVN(f.account_name.value).toUpperCase().trim();
+      if (/^\d{6}$/.test(bin) && acc.length >= 4) {
+        preview.href = 'https://img.vietqr.io/image/' + encodeURIComponent(bin) + '-' + encodeURIComponent(acc) + '-compact2.png?amount=1000000&addInfo=MHT-TEST' + (name ? '&accountName=' + encodeURIComponent(name) : '');
+        preview.hidden = false; previewNote.textContent = 'Mã thử với số tiền 1.000.000 đ, nội dung MHT-TEST. Quét bằng app ngân hàng để kiểm tra tên chủ tài khoản.';
+      } else { preview.hidden = true; previewNote.textContent = 'Nhập đủ mã BIN và số tài khoản để xem trước mã QR.'; }
+    }
+    updatePreview();
+
+    const msg = h('div', { class: 'msg', role: 'status', hidden: true });
+    const save = h('button', { type: 'submit', class: 'btn btn-primary' }, 'Lưu tài khoản nhận tiền');
+    const form = h('form', { class: 'card', novalidate: true },
+      h('div', { class: 'card-h' }, h('h2', null, BZ.icon3d('payments'), 'Tài khoản nhận chuyển khoản')),
+      h('div', { class: 'msg info', style: { marginBottom: '14px' } }, 'Thông tin này hiện trên trang báo giá gửi khách, kèm mã QR VietQR để khách chuyển khoản đúng số tiền và nội dung.'),
+      ro ? h('div', { class: 'msg info', style: { marginBottom: '14px' } }, 'Bạn đang xem ở chế độ chỉ đọc. Chỉ Quản trị viên được sửa thông tin này.') : null,
+      h('div', { class: 'form-grid' },
+        h('div', { class: 'span2' }, BZ.field('Tên ngân hàng *', f.bank_name, 'Tên hiển thị cho khách, ví dụ: Vietcombank – CN Nghệ An')),
+        h('div', { class: 'span2 field' }, h('label', { for: 'bin-in' }, 'Mã BIN ngân hàng (VietQR) *'),
+          h('div', { class: 'bin-row' }, binSel, (f.bank_bin.id = 'bin-in', f.bank_bin)),
+          h('small', { class: 'muted' }, 'Chọn ngân hàng phổ biến hoặc tự nhập mã 6 chữ số theo danh sách của VietQR.')),
+        BZ.field('Số tài khoản *', f.account_no),
+        BZ.field('Tên chủ tài khoản *', f.account_name, 'IN HOA, không dấu – đúng như trên ngân hàng')
+      ),
+      h('div', { class: 'form-actions', style: { marginTop: '16px' } }, preview, previewNote),
+      h('div', { class: 'form-actions', style: { marginTop: '12px' } }, ro ? null : save, msg)
+    );
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      if (ro) return;
+      msg.hidden = true;
+      f.account_name.value = stripVN(f.account_name.value).toUpperCase().replace(/\s+/g, ' ').trim();
+      const v = {
+        bank_name: f.bank_name.value.trim(), bank_bin: f.bank_bin.value.trim(),
+        account_no: f.account_no.value.trim(), account_name: f.account_name.value
+      };
+      function bad(text, el) { msg.className = 'msg err'; msg.textContent = text; msg.hidden = false; el.focus(); }
+      if (!v.bank_name) return bad('Vui lòng nhập tên ngân hàng.', f.bank_name);
+      if (!/^\d{6}$/.test(v.bank_bin)) return bad('Mã BIN phải gồm đúng 6 chữ số.', f.bank_bin);
+      if (!/^[0-9A-Za-z]{4,24}$/.test(v.account_no)) return bad('Số tài khoản chưa hợp lệ.', f.account_no);
+      if (!/^[A-Z0-9 .\-]{3,}$/.test(v.account_name)) return bad('Tên chủ tài khoản cần IN HOA, không dấu.', f.account_name);
+      save.disabled = true; save.textContent = 'Đang lưu…';
+      try {
+        const cur = await loadSetting('bank');
+        const base = (cur && cur.value && typeof cur.value === 'object') ? cur.value : {};
+        const r = await sb.from('settings').upsert({ key: 'bank', value: Object.assign({}, base, v), is_public: true }, { onConflict: 'key' });
+        if (r.error) throw r.error;
+        BZ.toast('Đã lưu tài khoản nhận tiền.', 'ok');
+      } catch (err) { msg.className = 'msg err'; msg.textContent = BZ.errText(err); msg.hidden = false; }
+      finally { save.disabled = false; save.textContent = 'Lưu tài khoản nhận tiền'; }
+    });
+    panel.textContent = ''; panel.appendChild(form);
+  }
+
+  /* ================= 3. Nhân sự & phân quyền ================= */
+  const ROLE_DESC = {
+    super_admin: 'Toàn quyền, kể cả phân quyền',
+    admin: 'Quản trị vận hành, mời nhân sự',
+    sales: 'Khách tiềm năng, báo giá, đơn hàng',
+    finance: 'Đối soát thanh toán, gói dịch vụ',
+    editor: 'Nội dung website',
+    viewer: 'Chỉ xem'
+  };
+  const ROLE_ORDER = ['super_admin', 'admin', 'sales', 'finance', 'editor', 'viewer'];
+  const INVITE_LABEL = { pending: ['Chờ nhận', 'warn'], accepted: ['Đã nhận', 'ok'], revoked: ['Đã thu hồi', 'bad'], expired: ['Hết hạn', 'bad'] };
+  function roleLabel(r) { return BZ.LABELS.role[r] || r; }
+  function roleChips(roles) {
+    const list = (roles || []).slice().sort(function (a, b) { return ROLE_ORDER.indexOf(a) - ROLE_ORDER.indexOf(b); });
+    if (!list.length) return h('span', { class: 'muted' }, 'Chưa có vai trò');
+    return h('div', { class: 'chips' }, list.map(function (r) { return h('span', { class: 'chip ' + (r === 'super_admin' ? 'warn' : 'blue') }, roleLabel(r)); }));
+  }
+  function assignableRoles() { return ROLE_ORDER.filter(function (r) { return r !== 'super_admin' || ctx.can.superAdmin; }); }
+
+  async function renderStaff(panel) {
+    panel.textContent = '';
+    if (!ctx.can.admin) {
+      panel.appendChild(h('div', { class: 'card' }, h('div', { class: 'msg info' }, 'Bạn không có quyền quản lý nhân sự. Liên hệ Quản trị viên nếu cần thay đổi vai trò.')));
+      return;
+    }
+    const inviteBtn = h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: openInvite }, '+ Mời nhân sự');
+    const staffBody = h('tbody', null, BZ.emptyRow(5, 'Đang tải…'));
+    const staffPager = h('div', { class: 'pager', hidden: true });
+    const invBody = h('tbody', null, BZ.emptyRow(5, 'Đang tải…'));
+    const invPager = h('div', { class: 'pager', hidden: true });
+    panel.append(
+      h('section', { class: 'card' },
+        h('div', { class: 'card-h' }, h('h2', null, BZ.icon3d('leads'), 'Nhân sự'), inviteBtn),
+        h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+          h('thead', null, h('tr', null, ['Nhân sự', 'Vai trò', 'Trạng thái', 'Ngày tạo', ''].map(function (t) { return h('th', null, t); }))),
+          staffBody)),
+        staffPager),
+      h('section', { class: 'card' },
+        h('div', { class: 'card-h' }, h('h2', null, BZ.icon3d('settings'), 'Lời mời gần đây')),
+        h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+          h('thead', null, h('tr', null, ['Email', 'Vai trò', 'Trạng thái', 'Hết hạn', ''].map(function (t) { return h('th', null, t); }))),
+          invBody)),
+        invPager)
+    );
+
+    /* --- Danh sách nhân sự (phân trang phía trình duyệt, 25 dòng) --- */
+    let staff = [], sPage = 0;
+    async function loadStaff() {
+      staffBody.textContent = ''; staffBody.appendChild(BZ.emptyRow(5, 'Đang tải…'));
+      try { staff = (await BZ.rpc('admin_list_staff')) || []; }
+      catch (e) { staffBody.textContent = ''; staffBody.appendChild(BZ.emptyRow(5, BZ.errText(e))); return; }
+      staff.sort(function (a, b) { return String(a.full_name || a.email).localeCompare(String(b.full_name || b.email), 'vi'); });
+      drawStaff();
+    }
+    function drawStaff() {
+      staffBody.textContent = '';
+      if (!staff.length) { staffBody.appendChild(BZ.emptyRow(5, 'Chưa có nhân sự. Bấm "Mời nhân sự" để thêm người.')); staffPager.hidden = true; return; }
+      const pages = Math.ceil(staff.length / 25); if (sPage >= pages) sPage = pages - 1;
+      staff.slice(sPage * 25, sPage * 25 + 25).forEach(function (u) {
+        const self = u.user_id === ctx.user.id;
+        const targetSuper = (u.roles || []).indexOf('super_admin') >= 0;
+        const canEditRoles = !self && (ctx.can.superAdmin || !targetSuper);
+        const roleBtn = h('button', { type: 'button', class: 'btn btn-ghost btn-sm', disabled: !canEditRoles,
+          title: self ? 'Không thể tự đổi vai trò của mình' : (!canEditRoles ? 'Chỉ Quản trị cao nhất được sửa tài khoản này' : null),
+          onclick: function () { openRoles(u); } }, 'Đổi vai trò');
+        const lockBtn = ctx.can.superAdmin ? h('button', { type: 'button', class: 'btn btn-sm ' + (u.is_active ? 'btn-danger' : 'btn-ghost'), disabled: self,
+          title: self ? 'Không thể tự khóa tài khoản của mình' : null,
+          onclick: function () { toggleActive(u); } }, u.is_active ? 'Khóa' : 'Mở khóa') : null;
+        staffBody.appendChild(h('tr', null,
+          h('td', null, h('b', { style: { fontWeight: 600 } }, u.full_name || '—'), self ? ' (bạn)' : null, h('small', null, u.email || '—')),
+          h('td', null, roleChips(u.roles)),
+          h('td', null, h('span', { class: 'chip ' + (u.is_active ? 'ok' : 'bad') }, u.is_active ? 'Hoạt động' : 'Đã khóa')),
+          h('td', null, fmt.date(u.created_at)),
+          h('td', null, h('div', { class: 'row-actions' }, roleBtn, lockBtn))));
+      });
+      staffPager.textContent = '';
+      staffPager.hidden = pages <= 1;
+      if (pages > 1) staffPager.append(
+        h('span', null, 'Trang ' + (sPage + 1) + '/' + pages + ' · ' + staff.length + ' nhân sự'),
+        h('div', { class: 'row-actions' },
+          h('button', { type: 'button', class: 'btn btn-ghost btn-sm', disabled: sPage === 0, onclick: function () { sPage--; drawStaff(); } }, '‹ Trước'),
+          h('button', { type: 'button', class: 'btn btn-ghost btn-sm', disabled: sPage >= pages - 1, onclick: function () { sPage++; drawStaff(); } }, 'Sau ›')));
+    }
+
+    function openRoles(u) {
+      const cur = u.roles || [];
+      const boxes = {};
+      const list = h('div', { class: 'roles', role: 'group', 'aria-label': 'Vai trò' }, assignableRoles().map(function (r) {
+        const cb = h('input', { type: 'checkbox', value: r });
+        cb.checked = cur.indexOf(r) >= 0; boxes[r] = cb;
+        return h('label', null, cb, h('span', null, h('b', null, roleLabel(r)), h('small', null, ROLE_DESC[r])));
+      }));
+      BZ.modal({
+        title: 'Đổi vai trò',
+        body: h('div', { style: { display: 'grid', gap: '12px' } },
+          h('p', { class: 'muted' }, 'Nhân sự: ', h('b', { style: { color: 'var(--text)' } }, u.full_name || u.email), u.full_name ? ' · ' + u.email : ''),
+          list,
+          h('small', { class: 'muted' }, 'Thay đổi có hiệu lực từ lần tải trang tiếp theo của người đó.')),
+        actions: [
+          { label: 'Hủy', kind: 'ghost' },
+          { label: 'Lưu vai trò', kind: 'primary', onClick: async function (close, m) {
+            let picked = Object.keys(boxes).filter(function (r) { return boxes[r].checked; });
+            if (!ctx.can.superAdmin && cur.indexOf('super_admin') >= 0) picked.push('super_admin');
+            if (!picked.length) { m.textContent = 'Chọn ít nhất một vai trò.'; m.hidden = false; return; }
+            await BZ.rpc('admin_set_user_roles', { _target: u.user_id, _roles: picked });
+            close(); BZ.toast('Đã cập nhật vai trò.', 'ok'); loadStaff();
+          } }
+        ]
+      });
+    }
+
+    async function toggleActive(u) {
+      const lock = u.is_active;
+      const ok = await BZ.confirm(lock ? 'Khóa tài khoản?' : 'Mở khóa tài khoản?',
+        lock ? ((u.full_name || u.email) + ' sẽ không đăng nhập được vào trang quản trị cho đến khi được mở khóa.')
+             : ((u.full_name || u.email) + ' sẽ đăng nhập lại được với các vai trò hiện có.'),
+        lock ? 'Khóa tài khoản' : 'Mở khóa', lock);
+      if (!ok) return;
+      try { await BZ.rpc('admin_set_user_active', { _target: u.user_id, _active: !lock }); BZ.toast(lock ? 'Đã khóa tài khoản.' : 'Đã mở khóa tài khoản.', 'ok'); loadStaff(); }
+      catch (e) { BZ.toast(BZ.errText(e), 'err'); }
+    }
+
+    function openInvite() {
+      const email = input({ type: 'email', maxlength: 200, autocomplete: 'off', required: true });
+      const name = input({ maxlength: 100, autocomplete: 'off' });
+      const role = h('select', null, assignableRoles().map(function (r) { return h('option', { value: r }, roleLabel(r) + ' – ' + ROLE_DESC[r]); }));
+      role.value = 'sales';
+      BZ.modal({
+        title: 'Mời nhân sự',
+        body: h('div', { style: { display: 'grid', gap: '14px' } },
+          BZ.field('Email *', email, 'Người được mời phải dùng đúng email này để tạo mật khẩu.'),
+          BZ.field('Họ tên', name),
+          BZ.field('Vai trò', role)),
+        actions: [
+          { label: 'Hủy', kind: 'ghost' },
+          { label: 'Gửi lời mời', kind: 'primary', onClick: async function (close, m) {
+            const e = email.value.trim().toLowerCase();
+            if (!EMAIL_RE.test(e)) { m.textContent = 'Email chưa đúng định dạng.'; m.hidden = false; email.focus(); return; }
+            await BZ.rpc('admin_invite_staff', { _email: e, _full_name: name.value.trim() || null, _role: role.value });
+            close(); loadInvites(); showInviteHelp(e);
+          } }
+        ]
+      });
+    }
+    function showInviteHelp(email) {
+      const text = 'Vào ' + location.origin + '/admin/, bấm Tạo mật khẩu, dùng đúng email ' + email + '. Lời mời hết hạn sau 7 ngày.';
+      const ta = h('textarea', { class: 'copy-box', readonly: true, 'aria-label': 'Nội dung gửi cho người được mời' }); ta.value = text;
+      BZ.modal({
+        title: 'Đã tạo lời mời',
+        body: h('div', { style: { display: 'grid', gap: '12px' } },
+          h('div', { class: 'msg ok' }, 'Lời mời cho ' + email + ' đã được tạo.'),
+          h('p', { class: 'muted' }, 'Gửi nội dung sau cho người được mời qua Zalo hoặc email:'), ta),
+        actions: [
+          { label: 'Đóng', kind: 'ghost' },
+          { label: 'Sao chép nội dung', kind: 'primary', onClick: async function () {
+            if (await copyText(text)) BZ.toast('Đã sao chép nội dung.', 'ok');
+            else { ta.focus(); ta.select(); BZ.toast('Không sao chép tự động được. Hãy chọn và sao chép thủ công.', 'err'); }
+          } }
+        ]
+      });
+    }
+
+    /* --- Lời mời (phân trang máy chủ, 25 dòng) --- */
+    let iPage = 0;
+    async function loadInvites() {
+      invBody.textContent = ''; invBody.appendChild(BZ.emptyRow(5, 'Đang tải…'));
+      const from = iPage * 25;
+      const r = await sb.from('staff_invites').select('id,email,full_name,role,status,expires_at,created_at', { count: 'exact' })
+        .order('created_at', { ascending: false }).range(from, from + 24);
+      invBody.textContent = '';
+      if (r.error) { invBody.appendChild(BZ.emptyRow(5, BZ.errText(r.error))); invPager.hidden = true; return; }
+      if (!r.data.length) { invBody.appendChild(BZ.emptyRow(5, 'Chưa có lời mời nào.')); invPager.hidden = true; return; }
+      const now = Date.now();
+      r.data.forEach(function (iv) {
+        const expired = iv.status === 'pending' && iv.expires_at && new Date(iv.expires_at).getTime() < now;
+        const st = INVITE_LABEL[expired ? 'expired' : iv.status] || [iv.status || '—', 'info'];
+        const canRevoke = ctx.can.superAdmin && iv.status === 'pending';
+        invBody.appendChild(h('tr', null,
+          h('td', null, iv.email, iv.full_name ? h('small', null, iv.full_name) : null),
+          h('td', null, h('span', { class: 'chip blue' }, roleLabel(iv.role))),
+          h('td', null, h('span', { class: 'chip ' + st[1] }, st[0])),
+          h('td', null, fmt.dateTime(iv.expires_at)),
+          h('td', null, canRevoke ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: async function () {
+            const ok = await BZ.confirm('Thu hồi lời mời?', 'Lời mời cho ' + iv.email + ' sẽ không dùng được nữa.', 'Thu hồi', true);
+            if (!ok) return;
+            try { await BZ.rpc('admin_revoke_invite', { _invite_id: iv.id }); BZ.toast('Đã thu hồi lời mời.', 'ok'); loadInvites(); }
+            catch (e) { BZ.toast(BZ.errText(e), 'err'); }
+          } }, 'Thu hồi') : null)));
+      });
+      const total = r.count || 0, pages = Math.max(1, Math.ceil(total / 25));
+      invPager.textContent = ''; invPager.hidden = pages <= 1;
+      if (pages > 1) invPager.append(
+        h('span', null, 'Trang ' + (iPage + 1) + '/' + pages + ' · ' + total + ' lời mời'),
+        h('div', { class: 'row-actions' },
+          h('button', { type: 'button', class: 'btn btn-ghost btn-sm', disabled: iPage === 0, onclick: function () { iPage--; loadInvites(); } }, '‹ Trước'),
+          h('button', { type: 'button', class: 'btn btn-ghost btn-sm', disabled: iPage >= pages - 1, onclick: function () { iPage++; loadInvites(); } }, 'Sau ›')));
+    }
+
+    await Promise.all([loadStaff(), loadInvites()]);
+  }
+
+  /* ================= 4. Tài khoản của tôi ================= */
+  async function renderMe(panel) {
+    panel.textContent = '';
+    const nameIn = input({ maxlength: 100, autocomplete: 'name', required: true }, ctx.name === ctx.user.email ? '' : ctx.name);
+    const nameMsg = h('div', { class: 'msg', role: 'status', hidden: true });
+    const nameBtn = h('button', { type: 'submit', class: 'btn btn-primary' }, 'Lưu họ tên');
+    const nameForm = h('form', { class: 'card', novalidate: true },
+      h('div', { class: 'card-h' }, h('h2', null, BZ.icon3d('leads'), 'Thông tin cá nhân')),
+      h('div', { class: 'form-grid' },
+        BZ.field('Email đăng nhập', input({ readonly: true, type: 'email' }, ctx.user.email)),
+        BZ.field('Họ tên *', nameIn)),
+      h('div', { class: 'form-actions', style: { marginTop: '16px' } }, nameBtn, nameMsg));
+    nameForm.addEventListener('submit', async function (e) {
+      e.preventDefault(); nameMsg.hidden = true;
+      const v = nameIn.value.trim().replace(/\s+/g, ' ');
+      if (v.length < 2) { nameMsg.className = 'msg err'; nameMsg.textContent = 'Họ tên cần ít nhất 2 ký tự.'; nameMsg.hidden = false; nameIn.focus(); return; }
+      nameBtn.disabled = true;
+      try {
+        const r = await sb.from('profiles').update({ full_name: v }).eq('id', ctx.user.id);
+        if (r.error) throw r.error;
+        nameIn.value = v; BZ.toast('Đã lưu họ tên. Tên mới hiện ở menu sau khi tải lại trang.', 'ok');
+      } catch (err) { nameMsg.className = 'msg err'; nameMsg.textContent = BZ.errText(err); nameMsg.hidden = false; }
+      finally { nameBtn.disabled = false; }
+    });
+
+    const pw1 = input({ type: 'password', autocomplete: 'new-password', minlength: 8 });
+    const pw2 = input({ type: 'password', autocomplete: 'new-password', minlength: 8 });
+    const pwMsg = h('div', { class: 'msg', role: 'status', hidden: true });
+    const pwBtn = h('button', { type: 'submit', class: 'btn btn-primary' }, 'Đổi mật khẩu');
+    const pwForm = h('form', { class: 'card', novalidate: true },
+      h('div', { class: 'card-h' }, h('h2', null, BZ.icon3d('settings'), 'Đổi mật khẩu')),
+      h('div', { class: 'form-grid' },
+        BZ.field('Mật khẩu mới *', pw1, 'Tối thiểu 8 ký tự.'),
+        BZ.field('Nhập lại mật khẩu mới *', pw2)),
+      h('div', { class: 'form-actions', style: { marginTop: '16px' } }, pwBtn, pwMsg));
+    pwForm.addEventListener('submit', async function (e) {
+      e.preventDefault(); pwMsg.hidden = true;
+      function bad(t, el) { pwMsg.className = 'msg err'; pwMsg.textContent = t; pwMsg.hidden = false; el.focus(); }
+      if (pw1.value.length < 8) return bad('Mật khẩu cần tối thiểu 8 ký tự.', pw1);
+      if (pw1.value !== pw2.value) return bad('Hai mật khẩu chưa khớp nhau.', pw2);
+      pwBtn.disabled = true; pwBtn.textContent = 'Đang lưu…';
+      try {
+        const r = await sb.auth.updateUser({ password: pw1.value });
+        if (r.error) throw r.error;
+        pw1.value = ''; pw2.value = '';
+        pwMsg.className = 'msg ok'; pwMsg.textContent = 'Đã đổi mật khẩu. Lần đăng nhập sau hãy dùng mật khẩu mới.'; pwMsg.hidden = false;
+      } catch (err) {
+        const m = (err && err.message) || '';
+        pwMsg.className = 'msg err';
+        pwMsg.textContent = /different from the old|same.*password/i.test(m) ? 'Mật khẩu mới phải khác mật khẩu cũ.'
+          : /weak|at least/i.test(m) ? 'Mật khẩu quá yếu. Hãy dùng mật khẩu dài hơn, có chữ và số.'
+          : /reauthent/i.test(m) ? 'Vui lòng đăng xuất, đăng nhập lại rồi đổi mật khẩu.'
+          : BZ.errText(err);
+        pwMsg.hidden = false;
+      } finally { pwBtn.disabled = false; pwBtn.textContent = 'Đổi mật khẩu'; }
+    });
+    panel.append(nameForm, pwForm);
+  }
+});
+</script>
+</body>
+</html>

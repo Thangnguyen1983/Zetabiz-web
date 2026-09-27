@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Khách hàng &amp; gói – Quản trị BIZTECK</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231D4ED8'/%3E%3Ccircle cx='16' cy='12' r='5' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M16 17v9M10 24c2 2 10 2 12 0' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>
+.sec-t{font-size:14px;font-weight:600;margin:0 0 8px}
+.exp-warn{color:var(--warning);font-weight:600}
+.exp-bad{color:var(--danger);font-weight:600}
+.field input[type=number]{height:46px}
+</style>
+</head>
+<body data-page="subscriptions">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, fmt = BZ.fmt, sb = ctx.sb, main = ctx.main;
+  const PAGE = 25, SOON_DAYS = 14, DAY = 86400000;
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const LIVE = ['trial', 'active', 'past_due'];
+  const clean = function (s) { return String(s || '').replace(/[,()%*\\"]/g, ' ').replace(/\s+/g, ' ').trim(); };
+  const soonIso = function () { return new Date(Date.now() + SOON_DAYS * DAY).toISOString(); };
+
+  main.appendChild(BZ.pageHead('Khách hàng & gói', 'Doanh nghiệp đang dùng dịch vụ, hạn sử dụng và gia hạn gói.'));
+
+  /* ---------- KPI ---------- */
+  function kpi(iconKey, label, id) {
+    return h('div', { class: 'kpi' }, BZ.icon3d(iconKey, true), h('div', null, h('small', null, label), h('b', { id: id }, '—'), h('em', { id: id + '-n' }, '')));
+  }
+  main.appendChild(h('section', { class: 'kpis', 'aria-label': 'Số liệu gói dịch vụ' },
+    kpi('subscriptions', 'Đang hoạt động', 'k-act'),
+    kpi('payments', 'Sắp hết hạn (14 ngày)', 'k-soon'),
+    kpi('orders', 'Tạm ngưng', 'k-sus'),
+    kpi('settings', 'Hết hạn / Đã hủy', 'k-end')
+  ));
+  async function count(build) {
+    const r = await build(sb.from('subscriptions').select('id', { count: 'exact', head: true }));
+    return r.error ? null : r.count;
+  }
+  async function loadKpis() {
+    const nowIso = new Date().toISOString();
+    const [act, soon, sus, end] = await Promise.all([
+      count(function (q) { return q.in('status', ['active', 'trial']); }),
+      count(function (q) { return q.in('status', LIVE).gte('current_period_end', nowIso).lte('current_period_end', soonIso()); }),
+      count(function (q) { return q.eq('status', 'suspended'); }),
+      count(function (q) { return q.in('status', ['expired', 'cancelled']); })
+    ]);
+    const set = function (id, v, n) { document.getElementById(id).textContent = fmt.num(v); document.getElementById(id + '-n').textContent = v === null ? 'Không tải được' : (n || ''); };
+    set('k-act', act, 'gồm cả dùng thử');
+    set('k-soon', soon, soon ? 'cần nhắc khách gia hạn' : 'không có gói sắp hết hạn');
+    set('k-sus', sus);
+    set('k-end', end);
+  }
+
+  /* ---------- Bộ lọc ---------- */
+  const TABS = [
+    { key: 'all', label: 'Tất cả' },
+    { key: 'soon', label: 'Sắp hết hạn (14 ngày)' },
+    { key: 'active', label: 'Đang hoạt động', st: ['active'] },
+    { key: 'trial', label: 'Dùng thử', st: ['trial'] },
+    { key: 'past_due', label: 'Quá hạn', st: ['past_due'] },
+    { key: 'suspended', label: 'Tạm ngưng', st: ['suspended'] },
+    { key: 'ended', label: 'Hết hạn / Đã hủy', st: ['expired', 'cancelled'] }
+  ];
+  const state = { tab: 'all', q: '', page: 0 };
+  const tabBtns = TABS.map(function (t) {
+    return h('button', { type: 'button', role: 'tab', 'aria-selected': t.key === state.tab ? 'true' : 'false', onclick: function () { selectTab(t.key); } }, t.label);
+  });
+  function selectTab(key) {
+    state.tab = key; state.page = 0;
+    tabBtns.forEach(function (b, i) { b.setAttribute('aria-selected', TABS[i].key === key ? 'true' : 'false'); });
+    load();
+  }
+  const search = h('input', { type: 'search', placeholder: 'Tìm mã gói, tên sản phẩm, tên gói…', 'aria-label': 'Tìm gói dịch vụ' });
+  search.addEventListener('input', BZ.debounce(function () { state.q = clean(search.value); state.page = 0; load(); }, 350));
+
+  const COLS = 7;
+  const tbody = h('tbody', null, BZ.emptyRow(COLS, 'Đang tải…'));
+  const pagerBox = h('div', { class: 'pager' });
+  main.appendChild(h('section', { class: 'card' },
+    h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Lọc theo trạng thái' }, tabBtns),
+    h('div', { class: 'toolbar', style: { margin: '14px 0' } }, search),
+    h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+      h('thead', null, h('tr', null, ['Mã gói', 'Doanh nghiệp', 'Sản phẩm / Gói', 'Chu kỳ', 'Bắt đầu', 'Hết hạn kỳ này', 'Trạng thái'].map(function (t) { return h('th', null, t); }))),
+      tbody)),
+    pagerBox));
+
+  /* Cảnh báo hạn: trả về [class, ghi chú] */
+  function expiry(s) {
+    if (!s.current_period_end || LIVE.indexOf(s.status) < 0) return [null, null];
+    const days = Math.ceil((new Date(s.current_period_end).getTime() - Date.now()) / DAY);
+    if (days < 0) return ['exp-bad', 'Quá hạn ' + (-days) + ' ngày'];
+    if (days === 0) return ['exp-bad', 'Hết hạn hôm nay'];
+    if (days <= SOON_DAYS) return ['exp-warn', 'Còn ' + days + ' ngày'];
+    return [null, null];
+  }
+
+  let reqId = 0;
+  async function load() {
+    const my = ++reqId;
+    tbody.textContent = ''; tbody.appendChild(BZ.emptyRow(COLS, 'Đang tải…'));
+    pagerBox.textContent = '';
+    const tab = TABS.find(function (t) { return t.key === state.tab; });
+    const from = state.page * PAGE;
+    let q = sb.from('subscriptions').select('id,subscription_code,organization_id,product_name,plan_name,billing_cycle,status,started_at,current_period_end,created_at', { count: 'exact' });
+    if (tab.key === 'soon') q = q.in('status', LIVE).lte('current_period_end', soonIso()).order('current_period_end', { ascending: true });
+    else {
+      if (tab.st) q = tab.st.length === 1 ? q.eq('status', tab.st[0]) : q.in('status', tab.st);
+      q = q.order('created_at', { ascending: false });
+    }
+    if (state.q) { const x = '%' + state.q + '%'; q = q.or('subscription_code.ilike.' + x + ',product_name.ilike.' + x + ',plan_name.ilike.' + x); }
+    const r = await q.range(from, from + PAGE - 1);
+    if (my !== reqId) return;
+    tbody.textContent = '';
+    if (r.error) { tbody.appendChild(BZ.emptyRow(COLS, BZ.errText(r.error))); return; }
+    if (!r.data.length) {
+      tbody.appendChild(BZ.emptyRow(COLS, state.q ? 'Không tìm thấy gói phù hợp.'
+        : state.tab === 'all' ? 'Chưa có khách hàng dùng gói. Gói được tạo tự động khi kế toán duyệt thanh toán.'
+        : state.tab === 'soon' ? 'Không có gói nào sắp hết hạn trong 14 ngày.'
+        : 'Không có gói ở trạng thái này.'));
+      return;
+    }
+    const orgIds = Array.from(new Set(r.data.map(function (s) { return s.organization_id; }).filter(Boolean)));
+    const orgs = {};
+    if (orgIds.length) {
+      const og = await sb.from('organizations').select('id,name').in('id', orgIds);
+      if (my !== reqId) return;
+      if (!og.error) og.data.forEach(function (o) { orgs[o.id] = o.name; });
+    }
+    r.data.forEach(function (s) {
+      const ex = expiry(s);
+      tbody.appendChild(h('tr', { class: 'clickable', tabindex: '0', onclick: function () { openById(s.id); }, onkeydown: function (e) { if (e.key === 'Enter') openById(s.id); } },
+        h('td', null, h('b', null, s.subscription_code || '—')),
+        h('td', null, orgs[s.organization_id] || '—'),
+        h('td', null, s.product_name || '—', s.plan_name ? h('small', null, s.plan_name) : null),
+        h('td', null, fmt.cycle(s.billing_cycle)),
+        h('td', null, fmt.date(s.started_at)),
+        h('td', null, h('span', { class: ex[0] }, fmt.date(s.current_period_end)), ex[1] ? h('small', { class: ex[0] }, ex[1]) : null),
+        h('td', null, BZ.chip('sub', s.status))));
+    });
+    const total = r.count || 0, pages = Math.max(1, Math.ceil(total / PAGE));
+    pagerBox.append(
+      h('span', null, 'Hiển thị ' + (from + 1) + '–' + (from + r.data.length) + ' / ' + fmt.num(total) + ' gói'),
+      h('div', { class: 'row-actions' },
+        h('button', { type: 'button', class: 'btn btn-ghost btn-sm', disabled: state.page === 0, onclick: function () { state.page--; load(); } }, '‹ Trước'),
+        h('button', { type: 'button', class: 'btn btn-ghost btn-sm', disabled: state.page >= pages - 1, onclick: function () { state.page++; load(); } }, 'Sau ›')));
+  }
+
+  /* ---------- Chi tiết ---------- */
+  const EVENTS = { created: 'Tạo gói', activated: 'Kích hoạt', renewed: 'Gia hạn', status_changed: 'Đổi trạng thái', suspended: 'Tạm ngưng', reactivated: 'Kích hoạt lại', cancelled: 'Hủy gói', expired: 'Hết hạn', payment_approved: 'Duyệt thanh toán', renewed_by_payment: 'Gia hạn qua thanh toán', modules_added: 'Thêm mô-đun' };
+  function kv(pairs) {
+    return h('dl', { class: 'kv' }, pairs.filter(Boolean).map(function (p) { return [h('dt', null, p[0]), h('dd', null, p[1] === null || p[1] === undefined || p[1] === '' ? '—' : p[1])]; }));
+  }
+  function stLabel(v) { return v ? ((BZ.LABELS.sub[v] || [v])[0]) : '—'; }
+  function openById(id) {
+    if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
+    openDetail(id);
+  }
+
+  async function openDetail(id) {
+    const loading = BZ.modal({ title: 'Chi tiết gói dịch vụ', wide: true, body: h('p', { class: 'muted' }, 'Đang tải…') });
+    const [sr, ev] = await Promise.all([
+      sb.from('subscriptions').select('*').eq('id', id).maybeSingle(),
+      sb.from('subscription_events').select('event_type,from_status,to_status,created_at').eq('subscription_id', id).order('created_at', { ascending: false }).limit(50)
+    ]);
+    if (sr.error || !sr.data) {
+      loading.close();
+      BZ.modal({ title: 'Chi tiết gói dịch vụ', body: h('div', { class: 'msg err', role: 'alert' }, sr.error ? BZ.errText(sr.error) : 'Không tìm thấy gói này.'), actions: [{ label: 'Đóng', kind: 'ghost' }] });
+      return;
+    }
+    const s = sr.data;
+    let org = null;
+    if (s.organization_id) {
+      const og = await sb.from('organizations').select('name,tax_code,representative,phone,email,address').eq('id', s.organization_id).maybeSingle();
+      if (!og.error) org = og.data;
+    }
+    loading.close();
+    const ex = expiry(s);
+    const events = ev.error ? null : ev.data;
+
+    const body = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '18px' } },
+      h('div', { class: 'row-actions', style: { alignItems: 'center' } }, BZ.chip('sub', s.status), ex[1] ? h('span', { class: ex[0] }, ex[1]) : null),
+      h('div', { class: 'form-grid' },
+        h('div', null, h('h3', { class: 'sec-t' }, 'Doanh nghiệp'), org ? kv([
+          ['Tên', org.name], ['MST', org.tax_code], ['Người đại diện', org.representative],
+          ['Điện thoại', org.phone ? h('a', { href: 'tel:' + String(org.phone).replace(/[^0-9+]/g, '') }, org.phone) : null],
+          ['Email', org.email ? h('a', { href: 'mailto:' + org.email }, org.email) : null],
+          ['Địa chỉ', org.address]
+        ]) : h('p', { class: 'muted' }, 'Không tải được thông tin doanh nghiệp.')),
+        h('div', null, h('h3', { class: 'sec-t' }, 'Gói dịch vụ'), kv([
+          ['Mã gói', s.subscription_code], ['Sản phẩm', s.product_name], ['Gói', s.plan_name], ['Chu kỳ', fmt.cycle(s.billing_cycle)],
+          ['Bắt đầu', fmt.date(s.started_at)],
+          ['Kỳ hiện tại', fmt.date(s.current_period_start) + ' → ' + fmt.date(s.current_period_end)],
+          ['Tự gia hạn', s.auto_renew ? 'Có' : 'Không'],
+          s.suspend_reason ? ['Lý do tạm ngưng', s.suspend_reason] : null,
+          s.cancel_reason ? ['Lý do hủy', s.cancel_reason] : null,
+          s.note ? ['Ghi chú', h('span', { style: { whiteSpace: 'pre-wrap' } }, s.note)] : null
+        ]))),
+      events && events.length ? h('div', null, h('h3', { class: 'sec-t' }, 'Lịch sử'),
+        h('div', { class: 'table-wrap' }, h('table', { class: 't', style: { minWidth: '480px' } },
+          h('thead', null, h('tr', null, h('th', null, 'Thời gian'), h('th', null, 'Sự kiện'), h('th', null, 'Trạng thái'))),
+          h('tbody', null, events.map(function (e) {
+            return h('tr', null, h('td', null, fmt.dateTime(e.created_at)), h('td', null, EVENTS[e.event_type] || e.event_type || '—'),
+              h('td', null, e.from_status || e.to_status ? stLabel(e.from_status) + ' → ' + stLabel(e.to_status) : '—'));
+          }))))) : null,
+      !ctx.can.finance ? h('p', { class: 'muted' }, 'Chỉ Kế toán hoặc Quản trị được gia hạn, tạm ngưng hoặc hủy gói.') : null);
+
+    const actions = [{ label: 'Đóng', kind: 'ghost' }];
+    if (ctx.can.finance) {
+      if (s.status !== 'cancelled') actions.push({ label: 'Gia hạn', kind: 'primary', onClick: function (c) { askRenew(s, c); } });
+      if (['suspended', 'past_due', 'expired'].indexOf(s.status) >= 0) actions.push({ label: 'Kích hoạt lại', kind: 'accent', onClick: async function (c) {
+        const ok = await BZ.confirm('Kích hoạt lại gói', 'Gói ' + (s.subscription_code || '') + ' sẽ chuyển sang "Đang hoạt động" và khách dùng lại được ngay.', 'Kích hoạt lại');
+        if (!ok) return;
+        await BZ.rpc('subscription_set_status', { _subscription: s.id, _status: 'active', _reason: null });
+        done(c, s.id, 'Đã kích hoạt lại gói.');
+      } });
+      if (LIVE.indexOf(s.status) >= 0) actions.push({ label: 'Tạm ngưng', kind: 'ghost', onClick: function (c) { askReason(s, 'suspended', c); } });
+      if (s.status !== 'cancelled') actions.push({ label: 'Hủy gói', kind: 'danger', onClick: function (c) { askReason(s, 'cancelled', c); } });
+    }
+    BZ.modal({ title: 'Gói ' + (s.subscription_code || '') + (org && org.name ? ' – ' + org.name : ''), wide: true, body: body, actions: actions });
+  }
+
+  function done(closeDetail, id, text) {
+    closeDetail();
+    BZ.toast(text, 'ok');
+    load(); loadKpis(); openDetail(id);
+  }
+
+  function askRenew(s, closeDetail) {
+    const n = h('input', { type: 'number', min: '1', max: '24', step: '1', value: '1', inputmode: 'numeric' });
+    const unit = s.billing_cycle === 'yearly' ? 'năm' : s.billing_cycle === 'monthly' ? 'tháng' : 'kỳ';
+    BZ.modal({ title: 'Gia hạn gói ' + (s.subscription_code || ''),
+      body: h('div', { style: { display: 'flex', flexDirection: 'column', gap: '12px' } },
+        h('p', { class: 'muted' }, 'Hạn hiện tại: ' + fmt.date(s.current_period_end) + '. Chu kỳ: ' + fmt.cycle(s.billing_cycle) + '.'),
+        BZ.field('Số kỳ gia hạn (' + unit + ')', n, 'Từ 1 đến 24 kỳ.')),
+      actions: [
+        { label: 'Quay lại', kind: 'ghost' },
+        { label: 'Gia hạn', kind: 'primary', onClick: async function (close, msg) {
+          const v = Number(n.value);
+          if (!Number.isInteger(v) || v < 1 || v > 24) { msg.textContent = 'Số kỳ phải là số nguyên từ 1 đến 24.'; msg.hidden = false; n.focus(); return; }
+          await BZ.rpc('subscription_renew', { _subscription: s.id, _periods: v });
+          close(); done(closeDetail, s.id, 'Đã gia hạn thêm ' + v + ' ' + unit + '.');
+        } }
+      ] });
+  }
+
+  function askReason(s, st, closeDetail) {
+    const cancel = st === 'cancelled';
+    const reason = h('textarea', { maxlength: '500', placeholder: cancel ? 'VD: Khách ngừng sử dụng dịch vụ' : 'VD: Chưa thanh toán kỳ mới' });
+    const sure = cancel ? h('input', { type: 'checkbox' }) : null;
+    BZ.modal({ title: (cancel ? 'Hủy gói ' : 'Tạm ngưng gói ') + (s.subscription_code || ''),
+      body: h('div', { style: { display: 'flex', flexDirection: 'column', gap: '12px' } },
+        cancel ? h('div', { class: 'msg err' }, 'Hủy gói là thao tác nguy hiểm: khách sẽ mất quyền sử dụng và gói không thể gia hạn tiếp. Chỉ hủy khi khách đã xác nhận ngừng dịch vụ.')
+          : h('p', { class: 'muted' }, 'Khách sẽ tạm thời không dùng được dịch vụ cho tới khi được kích hoạt lại.'),
+        BZ.field('Lý do *', reason),
+        cancel ? h('label', { style: { display: 'flex', gap: '8px', alignItems: 'center', fontSize: '14px' } }, sure, 'Tôi hiểu gói sẽ bị hủy vĩnh viễn') : null),
+      actions: [
+        { label: 'Quay lại', kind: 'ghost' },
+        { label: cancel ? 'Hủy gói' : 'Tạm ngưng', kind: 'danger', onClick: async function (close, msg) {
+          const txt = reason.value.trim();
+          if (txt.length < 3) { msg.textContent = 'Vui lòng nhập lý do (ít nhất 3 ký tự).'; msg.hidden = false; reason.focus(); return; }
+          if (cancel && !sure.checked) { msg.textContent = 'Đánh dấu ô xác nhận trước khi hủy gói.'; msg.hidden = false; return; }
+          await BZ.rpc('subscription_set_status', { _subscription: s.id, _status: st, _reason: txt });
+          close(); done(closeDetail, s.id, cancel ? 'Đã hủy gói.' : 'Đã tạm ngưng gói.');
+        } }
+      ] });
+  }
+
+  function fromHash() {
+    const raw = decodeURIComponent(location.hash.slice(1));
+    if (raw === 'soon') selectTab('soon');
+    else if (UUID.test(raw)) openDetail(raw);
+  }
+  window.addEventListener('hashchange', fromHash);
+
+  loadKpis();
+  if (location.hash === '#soon') fromHash(); else { await load(); fromHash(); }
+});
+</script>
+</body>
+</html>

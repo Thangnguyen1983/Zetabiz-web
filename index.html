@@ -226,6 +226,41 @@ footer .co{font-weight:600}
 footer .meta{margin-top:8px;font-size:13px;color:#8F9CCC;line-height:1.7}
 footer nav{display:flex;flex-wrap:wrap;gap:24px;font-size:14px}
 footer nav a{text-decoration:none}
+/* hộp thoại đăng ký tư vấn */
+.cta .cta-row{position:relative;justify-content:center}
+html.lead-open{overflow:hidden}
+.lead-dlg{width:min(640px,calc(100% - 32px));max-height:calc(100dvh - 32px);padding:0;border-radius:24px;border:1px solid var(--line-2);color:var(--text);overflow:auto;overscroll-behavior:contain;
+  background:linear-gradient(165deg,rgba(17,28,69,.97),rgba(11,20,51,.98));box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 40px 120px -20px rgba(3,6,30,.9),0 0 80px -30px rgba(79,123,255,.6)}
+.lead-dlg::backdrop{background:rgba(3,6,20,.7);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.lead-in{padding:clamp(22px,4vw,34px)}
+.lead-h{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.lead-h h2{font-size:clamp(22px,3vw,28px);font-weight:600;line-height:1.2}
+.lead-h p{margin-top:6px;color:var(--muted);font-size:14px}
+.lead-x{flex-shrink:0;width:40px;height:40px;border-radius:12px;border:1px solid var(--line-2);background:rgba(143,176,255,.08);color:var(--text);font-size:22px;line-height:1;cursor:pointer}
+.lead-x:hover{background:rgba(143,176,255,.18)}
+.lead-form{margin-top:22px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.lead-form .full{grid-column:1/-1}
+.lf{display:flex;flex-direction:column;gap:6px;min-width:0}
+.lf label{font-size:13px;font-weight:500;color:#C9D3FF}
+.lf input,.lf select,.lf textarea{width:100%;min-height:48px;padding:10px 14px;border-radius:12px;border:1px solid var(--line-2);background:rgba(5,10,30,.55);color:var(--text);font:15px var(--font)}
+.lf textarea{min-height:92px;resize:vertical;line-height:1.5}
+.lf select option{background:#0B1433;color:var(--text)}
+.lf input::placeholder,.lf textarea::placeholder{color:var(--dim)}
+.lf input:focus,.lf select:focus,.lf textarea:focus{outline:2px solid var(--accent-soft);outline-offset:1px;border-color:transparent}
+.lf [aria-invalid="true"]{border-color:#F87171}
+.lead-ck{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--muted);cursor:pointer}
+.lead-ck input{width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:var(--accent)}
+.lead-hp{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}
+.lead-err{padding:12px 14px;border-radius:12px;background:rgba(248,113,113,.14);border:1px solid rgba(248,113,113,.4);color:#FECACA;font-size:14px}
+.lead-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.lead-foot small{font-size:12px;color:var(--dim)}
+.lead-ok{margin-top:22px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:12px 0 4px}
+.lead-ok .badge{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(52,211,153,.14);border:1px solid rgba(52,211,153,.4)}
+.lead-ok h3{font-size:22px;font-weight:600}
+.lead-ok p{color:var(--muted)}
+.lead-code{font:500 20px var(--mono);letter-spacing:.06em;padding:10px 18px;border-radius:12px;border:1px dashed var(--line-2);background:rgba(5,10,30,.5)}
+@media (max-width:600px){.lead-form{grid-template-columns:1fr}.lead-dlg{border-radius:20px}}
+
 @media (prefers-reduced-motion: reduce){
   *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
@@ -246,7 +281,7 @@ footer nav a{text-decoration:none}
       <a href="#quy-trinh">Quy trình AI</a>
       <a href="#hoi-dap">Hỏi đáp</a>
     </nav>
-    <a class="btn btn-primary" href="#giai-phap">Đăng ký ngay</a>
+    <a class="btn btn-primary" href="#giai-phap" data-lead="">Đăng ký ngay</a>
   </div>
 </header>
 
@@ -455,11 +490,67 @@ footer nav a{text-decoration:none}
     <svg viewBox="0 0 1328 240" preserveAspectRatio="none" aria-hidden="true"><ellipse cx="664" cy="260" rx="260" ry="70" stroke="rgba(90,130,255,.45)" stroke-width="2" fill="none"/><ellipse cx="664" cy="260" rx="420" ry="115" stroke="rgba(249,115,22,.35)" stroke-width="2" fill="none" class="pulse"/><ellipse cx="664" cy="260" rx="600" ry="165" stroke="rgba(90,130,255,.16)" stroke-width="2" fill="none"/></svg>
     <h2 id="cta-h">Sẵn sàng để AI vận hành cùng bạn?</h2>
     <p>Chọn ngành, đăng ký và bắt đầu ngay hôm nay.</p>
-    <a class="btn btn-accent" href="#giai-phap">Chọn giải pháp ngành</a>
+    <div class="cta-row">
+      <a class="btn btn-accent" href="#giai-phap">Chọn giải pháp ngành</a>
+      <a class="btn btn-ghost" href="#giai-phap" data-lead="">Nhận tư vấn miễn phí</a>
+    </div>
     <div class="contact">Hotline <a href="tel:0918566177">0918 566 177</a> · <a href="mailto:info@mhtbiz.com">info@mhtbiz.com</a></div>
   </div>
 </section>
 </main>
+
+<dialog class="lead-dlg" id="leadDlg" aria-labelledby="leadTitle" aria-describedby="leadDesc">
+  <div class="lead-in">
+    <div class="lead-h">
+      <div>
+        <span class="eyebrow">Tư vấn miễn phí</span>
+        <h2 id="leadTitle" style="margin-top:8px">Đăng ký nhận tư vấn &amp; báo giá</h2>
+        <p id="leadDesc">Để lại thông tin, chuyên viên MHT BIZ sẽ gọi lại tư vấn giải pháp phù hợp với doanh nghiệp của bạn.</p>
+      </div>
+      <button type="button" class="lead-x" id="leadClose" aria-label="Đóng">×</button>
+    </div>
+    <form class="lead-form" id="leadForm" novalidate>
+      <div class="lf"><label for="lf-name">Họ tên *</label><input id="lf-name" name="full_name" type="text" autocomplete="name" maxlength="100" required></div>
+      <div class="lf"><label for="lf-phone">Số điện thoại *</label><input id="lf-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" required placeholder="09xx xxx xxx"></div>
+      <div class="lf"><label for="lf-email">Email *</label><input id="lf-email" name="email" type="email" autocomplete="email" maxlength="200" required placeholder="ban@congty.vn"></div>
+      <div class="lf"><label for="lf-company">Tên doanh nghiệp</label><input id="lf-company" name="company" type="text" autocomplete="organization" maxlength="150"></div>
+      <div class="lf"><label for="lf-size">Quy mô</label>
+        <select id="lf-size" name="company_size">
+          <option value="">Chọn quy mô</option>
+          <option value="1–10 người">1–10 người</option>
+          <option value="11–50 người">11–50 người</option>
+          <option value="51–200 người">51–200 người</option>
+          <option value="Trên 200 người">Trên 200 người</option>
+        </select></div>
+      <div class="lf"><label for="lf-interest">Giải pháp quan tâm</label>
+        <select id="lf-interest" name="interest">
+          <option value="">Chọn giải pháp</option>
+          <option value="BIZTECK AutoPro" data-key="autopro">BIZTECK AutoPro – Garage ô tô</option>
+          <option value="BIZTECK SkyAgent" data-key="skyagent">BIZTECK SkyAgent – Đại lý vé máy bay</option>
+          <option value="BIZTECK SpaCare" data-key="spacare">BIZTECK SpaCare – Spa &amp; thẩm mỹ</option>
+          <option value="BIZTECK TradeHub" data-key="tradehub">BIZTECK TradeHub – Thương mại</option>
+          <option value="BIZTECK FactoryOne" data-key="factoryone">BIZTECK FactoryOne – Sản xuất</option>
+          <option value="Nhiều giải pháp">Nhiều giải pháp</option>
+        </select></div>
+      <div class="lf full"><label for="lf-need">Nhu cầu</label><textarea id="lf-need" name="need" maxlength="1500" placeholder="Ví dụ: garage 8 thợ, cần quản lý lệnh sửa chữa và kho phụ tùng"></textarea></div>
+      <div class="lead-hp" aria-hidden="true"><label for="lf-website">Website</label><input id="lf-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+      <label class="lead-ck full" for="lf-consent"><input id="lf-consent" name="consent" type="checkbox" required><span>Tôi đồng ý để MHT BIZ liên hệ tư vấn qua điện thoại, Zalo hoặc email. *</span></label>
+      <div class="lead-err full" id="leadErr" role="alert" hidden></div>
+      <div class="lead-foot full">
+        <small>Thông tin của bạn chỉ dùng để tư vấn.</small>
+        <button type="submit" class="btn btn-accent" id="leadSubmit">Gửi yêu cầu</button>
+      </div>
+    </form>
+    <div class="lead-ok" id="leadOk" hidden>
+      <span class="badge"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#34D399" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <h3 id="leadOkTitle" tabindex="-1">Đã gửi yêu cầu thành công</h3>
+      <p>Mã yêu cầu của bạn</p>
+      <div class="lead-code" id="leadCode"></div>
+      <p>MHT BIZ sẽ liên hệ trong giờ làm việc. Cần gấp? Gọi <a href="tel:0918566177">0918 566 177</a>.</p>
+      <button type="button" class="btn btn-ghost" id="leadDone">Đóng</button>
+    </div>
+  </div>
+</dialog>
 
 <footer>
   <div class="wrap">
@@ -473,6 +564,7 @@ footer nav a{text-decoration:none}
   </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 /* ===== CẤU HÌNH: điền đường dẫn trang con của từng sản phẩm ===== */
 const BIZTECK_LINKS = {
@@ -719,6 +811,130 @@ const BIZTECK_LINKS = {
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
+})();
+</script>
+<script>
+/* ===== Hộp thoại đăng ký tư vấn → Supabase submit_public_lead ===== */
+(function () {
+  'use strict';
+  var SUPABASE_URL = 'https://zuucoqfylagcfwnhomet.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_LVQhPQFXraB7C_1i0VtFlw_WndNHxAq';
+  var dlg = document.getElementById('leadDlg');
+  if (!dlg) return;
+  var form = document.getElementById('leadForm'), err = document.getElementById('leadErr');
+  var okBox = document.getElementById('leadOk'), submitBtn = document.getElementById('leadSubmit');
+  var f = {
+    name: document.getElementById('lf-name'), phone: document.getElementById('lf-phone'), email: document.getElementById('lf-email'),
+    company: document.getElementById('lf-company'), size: document.getElementById('lf-size'), interest: document.getElementById('lf-interest'),
+    need: document.getElementById('lf-need'), hp: document.getElementById('lf-website'), consent: document.getElementById('lf-consent')
+  };
+  var links = (typeof BIZTECK_LINKS !== 'undefined') ? BIZTECK_LINKS : {};
+  var sb = null, lastFocus = null, busy = false;
+  var native = typeof dlg.showModal === 'function';
+
+  function open(key) {
+    if (!okBox.hidden) { form.reset(); okBox.hidden = true; form.hidden = false; }
+    err.hidden = true;
+    [f.name, f.phone, f.email].forEach(function (el) { el.removeAttribute('aria-invalid'); });
+    if (key) {
+      var opt = f.interest.querySelector('option[data-key="' + key + '"]');
+      if (opt) f.interest.value = opt.value;
+    }
+    lastFocus = document.activeElement;
+    document.documentElement.classList.add('lead-open');
+    if (native) { if (!dlg.open) dlg.showModal(); }
+    else { dlg.setAttribute('open', ''); dlg.setAttribute('role', 'dialog'); dlg.setAttribute('aria-modal', 'true'); }
+    setTimeout(function () { f.name.focus(); }, 30);
+  }
+  function close() {
+    if (native) { if (dlg.open) dlg.close(); } else { dlg.removeAttribute('open'); onClosed(); }
+  }
+  function onClosed() {
+    document.documentElement.classList.remove('lead-open');
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  dlg.addEventListener('close', onClosed);
+  dlg.addEventListener('mousedown', function (e) {
+    if (e.target !== dlg) return;
+    var r = dlg.getBoundingClientRect();
+    var inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    if (!inside) close();
+  });
+  document.addEventListener('keydown', function (e) { if (!native && e.key === 'Escape' && dlg.hasAttribute('open')) close(); });
+  document.getElementById('leadClose').addEventListener('click', close);
+  document.getElementById('leadDone').addEventListener('click', close);
+
+  /* Nút mở hộp thoại */
+  document.querySelectorAll('[data-lead]').forEach(function (a) {
+    a.addEventListener('click', function (e) { e.preventDefault(); open(a.getAttribute('data-lead') || ''); });
+  });
+  ['autopro', 'skyagent', 'spacare', 'tradehub', 'factoryone'].forEach(function (key) {
+    document.querySelectorAll('.prod [data-link="' + key + '"]').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        var url = links[key];
+        if (url && url !== '#') return; /* đã có trang riêng: đi tới link */
+        e.preventDefault(); open(key);
+      });
+    });
+  });
+
+  function showErr(text, el) {
+    err.textContent = text; err.hidden = false;
+    if (el) { el.setAttribute('aria-invalid', 'true'); el.focus(); }
+  }
+  [f.name, f.phone, f.email].forEach(function (el) { el.addEventListener('input', function () { el.removeAttribute('aria-invalid'); }); });
+
+  function utm() {
+    var q = new URLSearchParams(location.search), o = {};
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].forEach(function (k) { var v = q.get(k); if (v) o[k] = v.slice(0, 200); });
+    return o;
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (busy) return;
+    err.hidden = true;
+    var name = f.name.value.trim().replace(/\s+/g, ' ');
+    var phone = f.phone.value.trim();
+    var phoneDigits = phone.replace(/[\s.\-()]/g, '');
+    var email = f.email.value.trim().toLowerCase();
+    var need = f.need.value.trim();
+    if (name.length < 2 || name.length > 100) return showErr('Vui lòng nhập họ tên (2–100 ký tự).', f.name);
+    if (!/^(\+?84|0)\d{8,10}$/.test(phoneDigits)) return showErr('Số điện thoại chưa đúng. Ví dụ: 0918 566 177.', f.phone);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return showErr('Email chưa đúng định dạng.', f.email);
+    if (need.length > 1500) return showErr('Phần nhu cầu tối đa 1.500 ký tự.', f.need);
+    if (!f.consent.checked) return showErr('Vui lòng đánh dấu đồng ý để MHT BIZ liên hệ tư vấn.', f.consent);
+
+    var payload = Object.assign({
+      full_name: name, phone: phoneDigits, email: email,
+      company: f.company.value.trim() || null, company_size: f.size.value || null,
+      interest: (f.interest.value || '').slice(0, 120) || null, need: need || null,
+      consent: true, honeypot: f.hp.value || '', variant: 'contact',
+      landing_page: location.href.slice(0, 500), referrer: (document.referrer || '').slice(0, 500) || null
+    }, utm());
+
+    busy = true; submitBtn.disabled = true; submitBtn.textContent = 'Đang gửi…';
+    try {
+      if (!sb) {
+        if (!window.supabase || !window.supabase.createClient) throw new Error('Failed to fetch');
+        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+      }
+      var r = await sb.rpc('submit_public_lead', { payload: payload });
+      if (r.error) throw r.error;
+      var d = r.data;
+      var code = typeof d === 'string' ? d : (d && (d.request_code || d.code)) || '';
+      document.getElementById('leadCode').textContent = code || 'Đã ghi nhận';
+      form.hidden = true; okBox.hidden = false;
+      document.getElementById('leadOkTitle').focus();
+      form.reset();
+    } catch (ex) {
+      var m = (ex && ex.message) || '';
+      showErr(/Failed to fetch|NetworkError|Load failed/i.test(m) ? 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.'
+        : (/[à-ỹđ]/i.test(m) ? m : 'Chưa gửi được yêu cầu. Vui lòng thử lại hoặc gọi hotline 0918 566 177.'));
+    } finally {
+      busy = false; submitBtn.disabled = false; submitBtn.textContent = 'Gửi yêu cầu';
+    }
+  });
 })();
 </script>
 

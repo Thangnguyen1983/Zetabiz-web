@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Thanh toán – Quản trị BIZTECK</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231D4ED8'/%3E%3Ccircle cx='16' cy='12' r='5' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M16 17v9M10 24c2 2 10 2 12 0' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>
+.sec-t{font-size:14px;font-weight:600;margin:0 0 8px}
+.mono{font-family:var(--mono);font-size:13px}
+.note-cell{max-width:220px;white-space:pre-wrap;word-break:break-word}
+.big-amt{font:500 22px var(--mono);font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body data-page="payments">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, fmt = BZ.fmt, sb = ctx.sb, main = ctx.main;
+  const PAGE = 25;
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const clean = function (s) { return String(s || '').replace(/[,()%*\\"]/g, ' ').replace(/\s+/g, ' ').trim(); };
+
+  main.appendChild(BZ.pageHead('Thanh toán', 'Đối soát chuyển khoản khách đã báo, duyệt để kích hoạt gói dịch vụ.'));
+  if (!ctx.can.finance) main.appendChild(h('div', { class: 'msg info' }, 'Bạn đang ở chế độ xem. Chỉ Kế toán hoặc Quản trị được duyệt/từ chối thanh toán.'));
+
+  /* ---------- Bộ lọc ---------- */
+  const TABS = [
+    { key: 'submitted', label: 'Chờ đối soát' },
+    { key: 'pending', label: 'Chờ chuyển khoản' },
+    { key: 'approved', label: 'Đã duyệt' },
+    { key: 'rejected', label: 'Từ chối' },
+    { key: 'all', label: 'Tất cả' }
+  ];
+  const state = { tab: 'submitted', q: '', page: 0 };
+  const tabBtns = TABS.map(function (t) {
+    return h('button', { type: 'button', role: 'tab', 'aria-selected': t.key === state.tab ? 'true' : 'false', onclick: function () {
+      state.tab = t.key; state.page = 0;
+      tabBtns.forEach(function (b, i) { b.setAttribute('aria-selected', TABS[i].key === t.key ? 'true' : 'false'); });
+      load();
+    } }, t.label);
+  });
+  const search = h('input', { type: 'search', placeholder: 'Tìm mã giao dịch hoặc nội dung chuyển khoản…', 'aria-label': 'Tìm thanh toán' });
+  search.addEventListener('input', BZ.debounce(function () { state.q = clean(search.value); state.page = 0; load(); }, 350));
+
+  const COLS = 9;
+  const tbody = h('tbody', null, BZ.emptyRow(COLS, 'Đang tải…'));
+  const pagerBox = h('div', { class: 'pager' });
+  main.appendChild(h('section', { class: 'card' },
+    h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Lọc theo trạng thái' }, tabBtns),
+    h('div', { class: 'toolbar', style: { margin: '14px 0' } }, search),
+    h('div', { class: 'table-wrap' }, h('table', { class: 't', style: { minWidth: '1000px' } },
+      h('thead', null, h('tr', null, ['Mã GD', 'Đơn hàng', 'Khách', 'Số tiền', 'Nội dung CK', 'Ngày chuyển', 'Ghi chú khách', 'Trạng thái', 'Gửi lúc'].map(function (t, i) { return h('th', { style: i === 3 ? { textAlign: 'right' } : null }, t); }))),
+      tbody)),
+    pagerBox));
+
+  let reqId = 0;
+  async function load() {
+    const my = ++reqId;
+    tbody.textContent = ''; tbody.appendChild(BZ.emptyRow(COLS, 'Đang tải…'));
+    pagerBox.textContent = '';
+    const from = state.page * PAGE;
+    let q = sb.from('payments').select('id,payment_code,order_id,organization_id,status,amount,currency,transfer_reference,payer_note,transferred_at,submitted_at,created_at', { count: 'exact' })
+      .order('submitted_at', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }).range(from, from + PAGE - 1);
+    if (state.tab !== 'all') q = q.eq('status', state.tab);
+    if (state.q) { const x = '%' + state.q + '%'; q = q.or('payment_code.ilike.' + x + ',transfer_reference.ilike.' + x); }
+    const r = await q;
+    if (my !== reqId) return;
+    tbody.textContent = '';
+    if (r.error) { tbody.appendChild(BZ.emptyRow(COLS, BZ.errText(r.error))); return; }
+    if (!r.data.length) {
+      const empty = state.q ? 'Không tìm thấy giao dịch phù hợp.'
+        : state.tab === 'submitted' ? 'Không có khoản nào chờ đối soát. Khi khách báo đã chuyển khoản, khoản đó sẽ hiện ở đây.'
+        : 'Không có giao dịch ở trạng thái này.';
+      tbody.appendChild(BZ.emptyRow(COLS, empty));
+      return;
+    }
+    const orderIds = uniq(r.data.map(function (p) { return p.order_id; }));
+    const orders = {};
+    if (orderIds.length) {
+      const o = await sb.from('orders').select('id,order_code,product_name,plan_name,contact_name,organization_id').in('id', orderIds);
+      if (my !== reqId) return;
+      if (!o.error) o.data.forEach(function (x) { orders[x.id] = x; });
+    }
+    const orgIds = uniq(r.data.map(function (p) { return p.organization_id || (orders[p.order_id] && orders[p.order_id].organization_id); }));
+    const orgs = {};
+    if (orgIds.length) {
+      const og = await sb.from('organizations').select('id,name').in('id', orgIds);
+      if (my !== reqId) return;
+      if (!og.error) og.data.forEach(function (x) { orgs[x.id] = x.name; });
+    }
+    r.data.forEach(function (p) {
+      const o = orders[p.order_id] || {};
+      const orgName = orgs[p.organization_id || o.organization_id];
+      tbody.appendChild(h('tr', { class: 'clickable', tabindex: '0', onclick: function () { openById(p.id); }, onkeydown: function (e) { if (e.key === 'Enter') openById(p.id); } },
+        h('td', null, h('b', null, p.payment_code || '—')),
+        h('td', null, o.order_code || '—', (o.product_name || o.plan_name) ? h('small', null, [o.product_name, o.plan_name].filter(Boolean).join(' – ')) : null),
+        h('td', null, o.contact_name || orgName || '—', o.contact_name && orgName ? h('small', null, orgName) : null),
+        h('td', { class: 'num' }, fmt.money(p.amount, p.currency)),
+        h('td', { class: 'mono' }, p.transfer_reference || '—'),
+        h('td', null, fmt.date(p.transferred_at)),
+        h('td', { class: 'note-cell' }, p.payer_note || '—'),
+        h('td', null, BZ.chip('payment', p.status)),
+        h('td', null, fmt.dateTime(p.submitted_at))));
+    });
+    const total = r.count || 0, pages = Math.max(1, Math.ceil(total / PAGE));
+    pagerBox.append(
+      h('span', null, 'Hiển thị ' + (from + 1) + '–' + (from + r.data.length) + ' / ' + fmt.num(total) + ' giao dịch'),
+      h('div', { class: 'row-actions' },
+        h('button', { type: 'button', class: 'btn btn-ghost btn-sm', disabled: state.page === 0, onclick: function () { state.page--; load(); } }, '‹ Trước'),
+        h('button', { type: 'button', class: 'btn btn-ghost btn-sm', disabled: state.page >= pages - 1, onclick: function () { state.page++; load(); } }, 'Sau ›')));
+  }
+  function uniq(a) { return Array.from(new Set(a.filter(Boolean))); }
+
+  /* ---------- Chi tiết ---------- */
+  function kv(pairs) {
+    return h('dl', { class: 'kv' }, pairs.filter(Boolean).map(function (p) { return [h('dt', null, p[0]), h('dd', null, p[1] === null || p[1] === undefined || p[1] === '' ? '—' : p[1])]; }));
+  }
+  function openById(id) {
+    if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
+    openDetail(id);
+  }
+
+  async function openDetail(id) {
+    const loading = BZ.modal({ title: 'Chi tiết thanh toán', wide: true, body: h('p', { class: 'muted' }, 'Đang tải…') });
+    const pr = await sb.from('payments').select('*').eq('id', id).maybeSingle();
+    if (pr.error || !pr.data) {
+      loading.close();
+      BZ.modal({ title: 'Chi tiết thanh toán', body: h('div', { class: 'msg err', role: 'alert' }, pr.error ? BZ.errText(pr.error) : 'Không tìm thấy giao dịch này.'), actions: [{ label: 'Đóng', kind: 'ghost' }] });
+      return;
+    }
+    const p = pr.data;
+    let o = null, org = null;
+    if (p.order_id) {
+      const or = await sb.from('orders').select('id,order_code,product_name,plan_name,billing_cycle,status,total_amount,currency,contact_name,contact_email,contact_phone,organization_id').eq('id', p.order_id).maybeSingle();
+      if (!or.error) o = or.data;
+    }
+    const orgId = p.organization_id || (o && o.organization_id);
+    if (orgId) {
+      const og = await sb.from('organizations').select('name,tax_code').eq('id', orgId).maybeSingle();
+      if (!og.error) org = og.data;
+    }
+    /* Khoản bị từ chối: chỉ cho duyệt lại khi đơn còn chờ thanh toán và không có khoản khác đang chờ/đã duyệt
+       (tránh duyệt hai lần → gia hạn gói và xuất chứng từ hai lần). */
+    let reapproveBlock = null;
+    if (p.status === 'rejected') {
+      if (!o) reapproveBlock = 'Không tải được đơn hàng nên chưa thể duyệt lại khoản này.';
+      else if (o.status !== 'pending_payment') reapproveBlock = 'Đơn không còn ở trạng thái chờ thanh toán nên không duyệt lại khoản bị từ chối.';
+      else {
+        const sib = await sb.from('payments').select('id', { count: 'exact', head: true }).eq('order_id', p.order_id).neq('id', p.id).in('status', ['submitted', 'approved']);
+        if (sib.error) reapproveBlock = 'Không kiểm tra được các khoản khác của đơn: ' + BZ.errText(sib.error);
+        else if (sib.count) reapproveBlock = 'Khách đã gửi một khoản thanh toán khác cho đơn này. Hãy đối soát khoản mới thay vì duyệt lại khoản bị từ chối.';
+      }
+    }
+    loading.close();
+
+    const mismatch = o && o.total_amount !== null && Number(o.total_amount) !== Number(p.amount);
+    const refMismatch = o && p.transfer_reference && o.order_code && String(p.transfer_reference).toUpperCase().indexOf(String(o.order_code).toUpperCase()) < 0;
+    const canReview = ctx.can.finance && (p.status === 'submitted' || (p.status === 'rejected' && !reapproveBlock));
+
+    const txn = h('input', { type: 'text', maxlength: '100', placeholder: 'VD: FT26270123456', autocomplete: 'off' });
+
+    const body = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '18px' } },
+      h('div', { class: 'row-actions', style: { alignItems: 'center', gap: '12px' } }, h('span', { class: 'big-amt' }, fmt.money(p.amount, p.currency)), BZ.chip('payment', p.status)),
+      h('div', { class: 'form-grid' },
+        h('div', null, h('h3', { class: 'sec-t' }, 'Giao dịch'), kv([
+          ['Mã GD', p.payment_code],
+          ['Nội dung CK', p.transfer_reference ? h('span', { class: 'mono' }, p.transfer_reference) : null],
+          ['Ngày chuyển', fmt.date(p.transferred_at)],
+          ['Khách báo lúc', fmt.dateTime(p.submitted_at)],
+          ['Ghi chú khách', p.payer_note ? h('span', { style: { whiteSpace: 'pre-wrap' } }, p.payer_note) : null],
+          p.reviewed_at ? ['Xử lý lúc', fmt.dateTime(p.reviewed_at)] : null,
+          p.external_txn_id ? ['Mã GD ngân hàng', h('span', { class: 'mono' }, p.external_txn_id)] : null])),
+        h('div', null, h('h3', { class: 'sec-t' }, 'Đơn hàng'), o ? kv([
+          ['Mã đơn', h('a', { href: '/admin/orders.html#' + o.id }, o.order_code || 'Xem đơn')],
+          ['Dịch vụ', [o.product_name, o.plan_name].filter(Boolean).join(' – ')],
+          ['Chu kỳ', fmt.cycle(o.billing_cycle)],
+          ['Tổng đơn', fmt.money(o.total_amount, o.currency)],
+          ['Trạng thái đơn', BZ.chip('order', o.status)],
+          ['Liên hệ', [o.contact_name, o.contact_phone, o.contact_email].filter(Boolean).join(' · ')],
+          org ? ['Doanh nghiệp', org.name + (org.tax_code ? ' (MST ' + org.tax_code + ')' : '')] : null
+        ]) : h('p', { class: 'muted' }, 'Không tải được thông tin đơn hàng.'))),
+      p.status === 'rejected' && p.rejected_reason ? h('div', { class: 'msg err' }, h('b', null, 'Lý do từ chối: '), p.rejected_reason) : null,
+      ctx.can.finance && reapproveBlock ? h('div', { class: 'msg info' }, reapproveBlock) : null,
+      mismatch ? h('div', { class: 'msg err', role: 'alert' }, 'Lưu ý: số tiền (' + fmt.money(p.amount, p.currency) + ') khác tổng đơn (' + fmt.money(o.total_amount, o.currency) + ').') : null,
+      refMismatch ? h('div', { class: 'msg err' }, 'Lưu ý: nội dung chuyển khoản không chứa mã đơn ' + o.order_code + '. Kiểm tra kỹ trước khi duyệt.') : null,
+      canReview ? h('div', { class: 'msg info' }, h('b', null, 'Cách đối soát: '),
+        'Mở sao kê tài khoản ngân hàng, tìm khoản nhận đúng ' + fmt.money(p.amount, p.currency) + ' có nội dung là mã đơn' + (o && o.order_code ? ' ' + o.order_code : '') + '. Có khoản khớp thì bấm "Duyệt", không thấy thì "Từ chối" và ghi rõ lý do.') : null,
+      canReview ? BZ.field('Mã giao dịch ngân hàng', txn, 'Không bắt buộc. Lấy từ sao kê để tiện tra cứu sau này.') : null,
+      (!ctx.can.finance && (p.status === 'submitted' || p.status === 'rejected')) ? h('p', { class: 'muted' }, 'Chỉ Kế toán hoặc Quản trị được duyệt khoản này.') : null);
+
+    const actions = [{ label: 'Đóng', kind: 'ghost' }];
+    if (canReview && p.status === 'submitted') actions.push({ label: 'Từ chối', kind: 'danger', onClick: function (closeDetail) { askReject(p, closeDetail); } });
+    if (canReview) actions.push({ label: p.status === 'rejected' ? 'Duyệt lại' : 'Duyệt thanh toán', kind: 'primary', onClick: async function (closeDetail) {
+      const code = o && o.order_code ? 'đơn ' + o.order_code : 'đơn hàng';
+      const ok = await BZ.confirm('Xác nhận duyệt thanh toán',
+        'Bạn xác nhận đã nhận ' + fmt.money(p.amount, p.currency) + ' trên sao kê. Hệ thống sẽ đánh dấu ' + code + ' là đã thanh toán và kích hoạt gói dịch vụ cho khách.',
+        'Duyệt thanh toán');
+      if (!ok) return;
+      const ext = txn.value.trim();
+      const res = await BZ.rpc('payment_review', { _payment: p.id, _approve: true, _reason: null, _external_txn_id: ext || null });
+      closeDetail();
+      if (res === 'already_approved') BZ.toast('Khoản này đã được duyệt trước đó. Không có thay đổi mới.', 'ok');
+      else BZ.toast('Đã duyệt thanh toán. Đơn đã chuyển sang "Đã thanh toán" và gói dịch vụ đã được kích hoạt.', 'ok');
+      load(); openDetail(p.id);
+    } });
+    BZ.modal({ title: 'Thanh toán ' + (p.payment_code || ''), wide: true, body: body, actions: actions });
+  }
+
+  function askReject(p, closeDetail) {
+    const reason = h('textarea', { maxlength: '500', placeholder: 'VD: Chưa thấy khoản nhận trên sao kê ngày 26/09' });
+    BZ.modal({ title: 'Từ chối thanh toán ' + (p.payment_code || ''),
+      body: h('div', { style: { display: 'flex', flexDirection: 'column', gap: '12px' } },
+        h('p', { class: 'muted' }, 'Khách sẽ thấy lý do này trên trang báo giá và có thể báo chuyển khoản lại.'),
+        BZ.field('Lý do từ chối *', reason)),
+      actions: [
+        { label: 'Quay lại', kind: 'ghost' },
+        { label: 'Từ chối', kind: 'danger', onClick: async function (close, msg) {
+          const txt = reason.value.trim();
+          if (txt.length < 3) { msg.textContent = 'Vui lòng nhập lý do từ chối (ít nhất 3 ký tự).'; msg.hidden = false; reason.focus(); return; }
+          const res = await BZ.rpc('payment_review', { _payment: p.id, _approve: false, _reason: txt, _external_txn_id: null });
+          close(); closeDetail();
+          if (res === 'already_approved') BZ.toast('Khoản này đã được duyệt trước đó nên không thể từ chối.', 'err');
+          else BZ.toast('Đã từ chối thanh toán.', 'ok');
+          load(); openDetail(p.id);
+        } }
+      ] });
+  }
+
+  function fromHash() {
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (UUID.test(id)) openDetail(id);
+  }
+  window.addEventListener('hashchange', fromHash);
+
+  await load();
+  fromHash();
+});
+</script>
+</body>
+</html>
