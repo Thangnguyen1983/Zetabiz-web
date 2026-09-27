@@ -143,9 +143,21 @@ p{margin:0}
 .kpi small{display:block;font-size:12px;color:#CFE0FF}
 .kpi b{display:block;margin-top:6px;font:500 26px var(--mono);font-variant-numeric:tabular-nums}
 .chart{padding:14px 16px;border-radius:12px;background:rgba(10,20,70,.25);border:1px solid rgba(125,211,252,.3)}
-.bars{margin-top:10px;height:110px;display:flex;align-items:flex-end;gap:10px}
-.bars span{flex:1;border-radius:6px 6px 2px 2px;background:#7AA2FF;transition:height .5s ease}
-.bars span:last-child{background:#67E8F9}
+.charts{display:grid;grid-template-columns:1.15fr 1fr;gap:12px}
+.chart small{display:block;font-size:12px;color:#CFE0FF}
+.donut{display:flex;align-items:center;gap:18px;margin-top:8px}
+.donut svg{flex-shrink:0}
+.leg{flex:1;display:flex;flex-direction:column;gap:8px}
+.leg div{display:flex;align-items:center;gap:8px;font-size:12px}
+.leg i{width:10px;height:10px;border-radius:3px}
+.leg span{flex:1;color:#CFE0FF}
+.leg b{font:500 13px var(--mono)}
+.gauge{display:flex;flex-direction:column;align-items:center}
+.gauge small{align-self:flex-start}
+.gauge b{margin-top:-4px;font:500 22px var(--mono)}
+.gauge em{font-style:normal;font-size:11px;color:#CFE0FF}
+.needle{transform-origin:100px 100px;transition:transform .7s cubic-bezier(.3,1.4,.5,1)}
+#dGauge{display:flex;flex-direction:column;align-items:center}
 .row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-top:1px solid rgba(125,211,252,.2);font-size:13px}
 .row em{font-style:normal;color:#CFE0FF}
 .chip{padding:3px 10px;border-radius:999px;font-size:12px;background:rgba(125,211,252,.25);color:#E0F7FF;white-space:nowrap}
@@ -340,7 +352,7 @@ html.lead-open{overflow:hidden}
                 <span class="mono" style="font-size:12px;color:#CFE0FF">Hôm nay · dữ liệu minh hoạ</span>
               </div>
               <div class="kpis" id="dKpis"></div>
-              <div class="chart"><small style="font-size:12px;color:#CFE0FF" id="dChart"></small><div class="bars" id="dBars"></div></div>
+              <div class="charts"><div class="chart"><small id="dChart"></small><div class="donut" id="dDonut"></div></div><div class="chart gauge"><small id="dGaugeT"></small><div id="dGauge"></div></div></div>
               <div id="dRows"></div>
             </div>
           </div>
@@ -594,27 +606,27 @@ const BIZTECK_LINKS = {
   const INDS = [
     { key: 'Garage', name: 'BIZTECK AutoPro · Garage ô tô',
       kpis: [['Xe đang sửa', '18'], ['Hoàn thành hôm nay', '7'], ['Phụ tùng sắp hết', '4']],
-      chart: 'Doanh thu dịch vụ 7 ngày', hs: [48, 62, 55, 80, 70, 92, 104],
+      chart: 'Xe trong xưởng theo trạng thái', center: '18', unit: 'xe', segs: [['Đang sửa', 56], ['Chờ phụ tùng', 22], ['Chờ giao xe', 22]], gT: 'Công suất khoang sửa', gV: 82, gTarget: 90,
       rows: [['51A-123.45', 'Thay dầu, lọc gió', 'Đang làm'], ['30G-678.90', 'Bảo dưỡng 40.000 km', 'Chờ phụ tùng'], ['59C-246.80', 'Sơn cản trước', 'Hoàn thành']],
       ai: '3 khách đến hạn bảo dưỡng tuần này. Gửi tin nhắc lịch qua Zalo?', chipT: 'Lịch hẹn tuần này', chipV: '42', note: 'Xe mới vào xưởng · vừa xong' },
     { key: 'Vé máy bay', name: 'BIZTECK SkyAgent · Đại lý vé',
       kpis: [['Booking hôm nay', '42'], ['Vé chờ xuất', '9'], ['Công nợ đại lý', '126tr']],
-      chart: 'Doanh số vé 7 ngày', hs: [70, 58, 84, 76, 96, 88, 108],
+      chart: 'Booking theo hãng bay', center: '42', unit: 'booking', segs: [['Vietnam Airlines', 48], ['Vietjet Air', 34], ['Bamboo Airways', 18]], gT: 'Xuất vé đúng hạn', gV: 91, gTarget: 95,
       rows: [['SGN → HAN', '2 khách · Thứ 6', 'Chờ xuất'], ['HAN → PQC', '4 khách · Chủ nhật', 'Đã xuất'], ['SGN → DAD', '1 khách · Thứ 2', 'Giữ chỗ']],
       ai: 'Giá chặng SGN–DAD đang thấp. Gửi ưu đãi cho 58 khách từng hỏi chặng này?', chipT: 'Đại lý cấp 2 đang hoạt động', chipV: '27', note: 'Booking mới từ đại lý · vừa xong' },
     { key: 'Spa', name: 'BIZTECK SpaCare · Spa',
       kpis: [['Lịch hẹn hôm nay', '26'], ['Liệu trình sắp hết', '11'], ['KTV đang làm', '6']],
-      chart: 'Doanh thu dịch vụ 7 ngày', hs: [52, 66, 60, 74, 98, 110, 90],
+      chart: 'Cơ cấu dịch vụ hôm nay', center: '26', unit: 'lịch hẹn', segs: [['Chăm sóc da', 46], ['Gội dưỡng sinh', 32], ['Triệt lông', 22]], gT: 'Tỷ lệ lấp lịch KTV', gV: 74, gTarget: 85,
       rows: [['10:00 · Chăm sóc da', 'KTV Lan', 'Đang làm'], ['11:30 · Gội dưỡng sinh', 'KTV Mai', 'Đã xác nhận'], ['14:00 · Triệt lông', 'KTV Hà', 'Chờ khách']],
       ai: '14 khách chưa quay lại sau 30 ngày. Tạo ưu đãi mời quay lại?', chipT: 'Khách quay lại tháng này', chipV: '63', note: 'Khách đặt lịch qua Zalo · vừa xong' },
     { key: 'Thương mại', name: 'BIZTECK TradeHub · Thương mại',
       kpis: [['Đơn hôm nay', '134'], ['Mã sắp hết hàng', '12'], ['Phải thu', '85tr']],
-      chart: 'Doanh thu đa kênh 7 ngày', hs: [64, 72, 68, 90, 84, 102, 112],
+      chart: 'Đơn hôm nay theo kênh', center: '134', unit: 'đơn', segs: [['Cửa hàng', 44], ['Online', 38], ['Bán sỉ', 18]], gT: 'Giao hàng đúng hẹn', gV: 88, gTarget: 95,
       rows: [['DH-10482', 'Cửa hàng · 3 sản phẩm', 'Đã giao'], ['DH-10483', 'Online · 1 sản phẩm', 'Đang giao'], ['DH-10484', 'Sỉ · 40 sản phẩm', 'Chờ duyệt']],
       ai: 'Mã SP-204 dự kiến hết trong 5 ngày. Tạo đề nghị nhập hàng?', chipT: 'Đơn online hôm nay', chipV: '58', note: 'Đơn online mới · vừa xong' },
     { key: 'Sản xuất', name: 'BIZTECK FactoryOne · Sản xuất',
       kpis: [['Lệnh đang chạy', '5'], ['Nguyên liệu thiếu', '2'], ['Tiến độ đơn', '78%']],
-      chart: 'Sản lượng 7 ngày', hs: [80, 76, 88, 92, 70, 96, 100],
+      chart: 'Cơ cấu sản lượng tuần', center: '4.820', unit: 'sản phẩm', segs: [['Hoàn thành', 62], ['Đang chạy', 26], ['Chờ nguyên liệu', 12]], gT: 'Hiệu suất xưởng (OEE)', gV: 78, gTarget: 85,
       rows: [['LSX-0921', '2.000 sản phẩm', '64%'], ['LSX-0922', '800 sản phẩm', '90%'], ['LSX-0925', '1.500 sản phẩm', 'Chờ nguyên liệu']],
       ai: 'Thép tấm 2mm sẽ thiếu cho LSX-0925. Tạo đề nghị mua ngay?', chipT: 'Sản phẩm hoàn thành tuần', chipV: '4.820', note: 'Lệnh sản xuất mới · vừa xong' }
   ];
@@ -626,7 +638,21 @@ const BIZTECK_LINKS = {
     $('dName').textContent = d.name;
     $('dKpis').innerHTML = d.kpis.map(function (k) { return '<div class="kpi"><small>' + esc(k[0]) + '</small><b>' + esc(k[1]) + '</b></div>'; }).join('');
     $('dChart').textContent = d.chart;
-    $('dBars').innerHTML = d.hs.map(function (h) { return '<span style="height:' + h + 'px"></span>'; }).join('');
+    const C = 2 * Math.PI * 42, cols = ['#67E8F9', '#7AA2FF', '#F59E0B'];
+    let off = 0, circ = '';
+    d.segs.forEach(function (sg, j) { const L = C * sg[1] / 100; circ += '<circle cx="55" cy="55" r="42" fill="none" stroke="' + cols[j] + '" stroke-width="14" stroke-dasharray="' + (L - 2).toFixed(1) + ' ' + C.toFixed(1) + '" stroke-dashoffset="' + (-off).toFixed(1) + '" transform="rotate(-90 55 55)"/>'; off += L; });
+    $('dDonut').innerHTML = '<svg width="110" height="110" viewBox="0 0 110 110" aria-hidden="true"><circle cx="55" cy="55" r="42" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="14"/>' + circ +
+      '<text x="55" y="54" text-anchor="middle" fill="#fff" style="font:600 17px var(--mono)">' + esc(d.center) + '</text><text x="55" y="70" text-anchor="middle" fill="#CFE0FF" style="font-size:10px">' + esc(d.unit) + '</text></svg>' +
+      '<div class="leg">' + d.segs.map(function (sg, j) { return '<div><i style="background:' + cols[j] + '"></i><span>' + esc(sg[0]) + '</span><b>' + sg[1] + '%</b></div>'; }).join('') + '</div>';
+    $('dGaugeT').textContent = d.gT;
+    let ticks = ''; for (let t = 0; t <= 10; t++) ticks += '<line x1="100" y1="22" x2="100" y2="29" stroke="#CFE0FF" stroke-opacity=".6" stroke-width="2" transform="rotate(' + (-90 + 18 * t) + ' 100 100)"/>';
+    const g = $('dGauge');
+    if (!g.firstChild) g.innerHTML = '<svg width="200" height="108" viewBox="0 0 200 108" aria-hidden="true"><path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="14" stroke-linecap="round"/><path class="gv" d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="#67E8F9" stroke-width="14" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100" style="transition:stroke-dasharray .7s ease"/>' + ticks +
+      '<line class="needle" x1="100" y1="100" x2="100" y2="40" stroke="#fff" stroke-width="3" stroke-linecap="round" style="transform:rotate(-90deg)"/><circle cx="100" cy="100" r="7" fill="#fff"/></svg><b></b><em></em>';
+    g.querySelector('.gv').setAttribute('stroke-dasharray', d.gV + ' 100');
+    g.querySelector('.needle').style.transform = 'rotate(' + (-90 + 180 * d.gV / 100) + 'deg)';
+    g.querySelector('b').textContent = d.gV + '%';
+    g.querySelector('em').textContent = 'Mục tiêu ' + d.gTarget + '%';
     $('dRows').innerHTML = d.rows.map(function (r) { return '<div class="row"><span>' + esc(r[0]) + '</span><em>' + esc(r[1]) + '</em><span class="chip">' + esc(r[2]) + '</span></div>'; }).join('');
     $('dAi').textContent = d.ai; $('dChipT').textContent = d.chipT; $('dChipV').textContent = d.chipV; $('dNote').textContent = d.note;
     Array.prototype.forEach.call(tabs.children, function (b, j) { b.setAttribute('aria-selected', j === i ? 'true' : 'false'); b.tabIndex = j === i ? 0 : -1; });
