@@ -132,28 +132,30 @@ p{margin:0}
 .fit-scale{position:absolute;left:50%;top:0;transform-origin:top center}
 .persp{perspective:2000px;display:flex;justify-content:center}
 .dash3d{position:relative;width:900px;height:540px;transform-style:preserve-3d;transform:rotateX(16deg) rotateY(-20deg) rotateZ(3deg);will-change:transform}
-.dash{position:absolute;inset:0;display:grid;grid-template-columns:190px minmax(0,1fr);background:#0A1033;border:1px solid rgba(143,176,255,.24);border-radius:20px;box-shadow:0 60px 140px rgba(20,50,200,.4);overflow:hidden}
-.dash-side{padding:22px 18px;border-right:1px solid rgba(143,176,255,.14);display:flex;flex-direction:column;gap:6px;font-size:13px;color:#8F9CCC}
+.dash3d::before{content:"";position:absolute;left:-12%;top:-8%;width:124%;height:120%;transform:translateZ(-120px);background:radial-gradient(40% 45% at 35% 50%,rgba(59,110,255,.6),transparent 70%),radial-gradient(35% 40% at 72% 55%,rgba(56,189,248,.45),transparent 70%),radial-gradient(22% 25% at 50% 88%,rgba(249,115,22,.28),transparent 70%);filter:blur(10px);pointer-events:none}
+.dash{position:absolute;inset:0;display:grid;grid-template-columns:190px minmax(0,1fr);background:linear-gradient(150deg,rgba(59,110,255,.34) 0%,rgba(29,78,216,.18) 50%,rgba(56,189,248,.18) 100%);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);border:1.5px solid rgba(125,211,252,.7);border-radius:20px;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 0 40px rgba(56,189,248,.45),0 50px 120px rgba(29,78,216,.6);overflow:hidden}
+.dash-side{padding:22px 18px;border-right:1px solid rgba(125,211,252,.25);display:flex;flex-direction:column;gap:6px;font-size:13px;color:#D0E4FF}
 .dash-side div{padding:9px 12px}
-.dash-side .on{border-radius:8px;background:rgba(29,78,216,.3);color:var(--text)}
+.dash-side .on{border-radius:8px;background:rgba(125,211,252,.28);color:#fff}
 .dash-main{padding:22px 24px;display:flex;flex-direction:column;gap:16px}
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.kpi{padding:14px 16px;border-radius:12px;background:#111A4A;border:1px solid rgba(143,176,255,.14)}
-.kpi small{display:block;font-size:12px;color:#9AA8D8}
+.kpi{padding:14px 16px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(125,211,252,.4)}
+.kpi small{display:block;font-size:12px;color:#CFE0FF}
 .kpi b{display:block;margin-top:6px;font:500 26px var(--mono);font-variant-numeric:tabular-nums}
-.chart{padding:14px 16px;border-radius:12px;background:#0D1540;border:1px solid rgba(143,176,255,.12)}
+.chart{padding:14px 16px;border-radius:12px;background:rgba(10,20,70,.25);border:1px solid rgba(125,211,252,.3)}
 .bars{margin-top:10px;height:110px;display:flex;align-items:flex-end;gap:10px}
-.bars span{flex:1;border-radius:6px 6px 2px 2px;background:var(--primary);transition:height .5s ease}
-.bars span:last-child{background:var(--info)}
-.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-top:1px solid rgba(143,176,255,.1);font-size:13px}
-.row em{font-style:normal;color:#9AA8D8}
-.chip{padding:3px 10px;border-radius:999px;font-size:12px;background:rgba(95,212,255,.14);color:#8FE3FF;white-space:nowrap}
-.float{position:absolute;border-radius:16px;background:rgba(18,30,92,.82);border:1px solid rgba(143,176,255,.35);box-shadow:0 30px 80px rgba(20,50,200,.45)}
+.bars span{flex:1;border-radius:6px 6px 2px 2px;background:#7AA2FF;transition:height .5s ease}
+.bars span:last-child{background:#67E8F9}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-top:1px solid rgba(125,211,252,.2);font-size:13px}
+.row em{font-style:normal;color:#CFE0FF}
+.chip{padding:3px 10px;border-radius:999px;font-size:12px;background:rgba(125,211,252,.25);color:#E0F7FF;white-space:nowrap}
+.float{position:absolute;border-radius:16px;background:linear-gradient(150deg,rgba(80,130,255,.45),rgba(29,78,216,.3));border:1.5px solid rgba(125,211,252,.75);box-shadow:0 0 30px rgba(56,189,248,.4),0 30px 70px rgba(8,20,90,.55)}
+.float small{color:#D6E6FF!important}
 .f-ai{right:-80px;top:36px;width:300px;padding:18px;transform:translateZ(110px)}
 .f-ai p{margin-top:10px;font-size:14px;line-height:1.55}
 .f-ai .mini{display:flex;gap:8px;margin-top:14px}
 .f-ai .mini span{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;background:var(--primary)}
-.f-ai .mini span+span{background:transparent;border:1px solid rgba(143,176,255,.35);font-weight:400;color:#C9D3FF}
+.f-ai .mini span+span{background:transparent;border:1px solid rgba(186,230,253,.7);font-weight:400;color:#fff}
 .f-num{left:-100px;bottom:50px;width:240px;padding:16px 18px;transform:translateZ(160px)}
 .f-num b{display:block;margin-top:6px;font:500 30px var(--mono)}
 .f-note{left:250px;top:-34px;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:12px;font-size:13px;transform:translateZ(80px)}
@@ -335,15 +337,15 @@ html.lead-open{overflow:hidden}
             <div class="dash-main">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
                 <b style="font-size:18px" id="dName"></b>
-                <span class="mono" style="font-size:12px;color:#8F9CCC">Hôm nay · dữ liệu minh hoạ</span>
+                <span class="mono" style="font-size:12px;color:#CFE0FF">Hôm nay · dữ liệu minh hoạ</span>
               </div>
               <div class="kpis" id="dKpis"></div>
-              <div class="chart"><small style="font-size:12px;color:#9AA8D8" id="dChart"></small><div class="bars" id="dBars"></div></div>
+              <div class="chart"><small style="font-size:12px;color:#CFE0FF" id="dChart"></small><div class="bars" id="dBars"></div></div>
               <div id="dRows"></div>
             </div>
           </div>
           <div class="float f-ai glass">
-            <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#A9C0FF">
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#fff">
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2.5l2.2 6.3 6.3 2.2-6.3 2.2L11 19.5l-2.2-6.3L2.5 11l6.3-2.2z" fill="#8FE3FF"/></svg>Trợ lý AI gợi ý
             </div>
             <p id="dAi"></p>
