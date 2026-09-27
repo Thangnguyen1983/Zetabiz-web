@@ -45,7 +45,7 @@
           "value": "biztech-web.vercel.app"
         }
       ],
-      "destination": "https://zetabiz.vercel.app/:path*",
+      "destination": "https://mhtbiz.com/:path*",
       "permanent": true
     },
     {
@@ -56,7 +56,18 @@
           "value": "biztech-web-mhtbiz.vercel.app"
         }
       ],
-      "destination": "https://zetabiz.vercel.app/:path*",
+      "destination": "https://mhtbiz.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "zetabiz.vercel.app"
+        }
+      ],
+      "destination": "https://mhtbiz.com/:path*",
       "permanent": true
     },
     {
