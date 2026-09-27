@@ -1,4 +1,4 @@
-/* Kết nối Supabase cho cổng quản trị BIZTECK.
+/* Kết nối Supabase cho cổng quản trị Zetabiz.
    Khoá "publishable" được phép công khai: mọi quyền truy cập dữ liệu
    đều do chính sách RLS trong cơ sở dữ liệu kiểm soát. */
 window.BIZTECK_ADMIN = {

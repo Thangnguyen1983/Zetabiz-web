@@ -6,11 +6,11 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#0B1B3F">
-<title>Báo giá & thanh toán – BIZTECK</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231D4ED8'/%3E%3Ccircle cx='16' cy='12' r='5' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M16 17v9M10 24c2 2 10 2 12 0' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+<title>Báo giá & thanh toán – Zetabiz</title>
+<link rel="icon" type="image/png" href="/assets/zetabiz-mark-64.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 :root{
   color-scheme: light;
@@ -146,14 +146,14 @@ footer{border-top:1px solid var(--line);padding-block:24px 36px;font-size:13px;c
 footer b{color:var(--text);font-weight:600}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+.logo-mark{width:30px;height:auto;display:block;flex-shrink:0}.logo-word{font-family:'Poppins','Be Vietnam Pro',sans-serif;font-weight:700;font-size:21px;letter-spacing:.005em;line-height:1}
 </style>
 </head>
 <body>
 <header class="hdr">
   <div class="wrap">
-    <a class="logo" href="/" aria-label="BIZTECK – trang chủ">
-      <svg width="28" height="28" viewBox="0 0 30 30" fill="none" stroke="#1D4ED8" stroke-width="1.6" aria-hidden="true"><circle cx="15" cy="10" r="6"/><path d="M15 16v10M9 24c2 2 10 2 12 0M6 19c4-2 14-2 18 0"/></svg>
-      BIZTECK
+    <a class="logo" href="/" aria-label="Zetabiz – trang chủ">
+      <img class="logo-mark" src="/assets/zetabiz-mark-64.png" alt="" width="30" height="31"><span class="logo-word">Zetabiz</span>
     </a>
     <a class="hot" id="hot" href="tel:0918566177"><span>Hotline hỗ trợ</span> <b id="hot-n">0918 566 177</b></a>
   </div>
@@ -306,7 +306,7 @@ footer b{color:var(--text);font-weight:600}
   function show() { app.textContent = ''; Array.prototype.slice.call(arguments).forEach(function (n) { if (n) app.appendChild(n); }); }
 
   function notFound() {
-    document.title = 'Không tìm thấy báo giá – BIZTECK';
+    document.title = 'Không tìm thấy báo giá – Zetabiz';
     show(stateCard('info', 'Không tìm thấy báo giá', 'Đường dẫn có thể đã sai hoặc báo giá không còn hiệu lực. Vui lòng kiểm tra lại đường dẫn trong tin nhắn, hoặc liên hệ nhân viên tư vấn để được gửi lại.',
       contactLine()));
   }
@@ -404,7 +404,7 @@ footer b{color:var(--text);font-weight:600}
       h('div', { class: 'field' }, h('label', { for: 'rp-name' }, 'Tên người / đơn vị chuyển khoản *'), name),
       h('div', { class: 'field' }, h('label', { for: 'rp-date' }, 'Ngày chuyển *'), d),
       h('div', { class: 'field' }, h('label', { for: 'rp-note' }, 'Ghi chú'), note),
-      h('label', { class: 'check', for: 'rp-agree' }, agree, h('span', null, 'Tôi xác nhận đã chuyển khoản đúng số tiền, đúng nội dung và đồng ý với điều khoản sử dụng dịch vụ BIZTECK.')),
+      h('label', { class: 'check', for: 'rp-agree' }, agree, h('span', null, 'Tôi xác nhận đã chuyển khoản đúng số tiền, đúng nội dung và đồng ý với điều khoản sử dụng dịch vụ Zetabiz.')),
       err, btn);
     form.addEventListener('submit', async function (e) {
       e.preventDefault(); err.hidden = true;
@@ -430,7 +430,7 @@ footer b{color:var(--text);font-weight:600}
     return h('section', { class: 'card', 'aria-labelledby': 'f-h' },
       h('div', { class: 'card-h' }, h('h2', { id: 'f-h' }, rejected ? 'Gửi lại xác nhận chuyển khoản' : 'Tôi đã chuyển khoản')),
       h('p', { style: 'font-size:14px;color:var(--muted);margin:-6px 0 14px' }, 'Sau khi chuyển khoản, gửi xác nhận để kế toán đối soát và kích hoạt tài khoản cho bạn.'),
-      h('p', { style: 'font-size:13px;color:var(--muted);margin:0 0 14px' }, 'Bằng việc chuyển khoản và gửi xác nhận, bạn đồng ý với ', h('a', { href: '/dieu-khoan/', target: '_blank', rel: 'noopener' }, 'Điều khoản sử dụng và giao dịch'), ' của BIZTECK. Dữ liệu cá nhân được xử lý theo ', h('a', { href: '/chinh-sach-bao-mat/', target: '_blank', rel: 'noopener' }, 'Chính sách bảo mật'), '.'),
+      h('p', { style: 'font-size:13px;color:var(--muted);margin:0 0 14px' }, 'Bằng việc chuyển khoản và gửi xác nhận, bạn đồng ý với ', h('a', { href: '/dieu-khoan/', target: '_blank', rel: 'noopener' }, 'Điều khoản sử dụng và giao dịch'), ' của Zetabiz. Dữ liệu cá nhân được xử lý theo ', h('a', { href: '/chinh-sach-bao-mat/', target: '_blank', rel: 'noopener' }, 'Chính sách bảo mật'), '.'),
       form);
   }
 
@@ -446,7 +446,7 @@ footer b{color:var(--text);font-weight:600}
       box.textContent = '';
       box.append(stateCard('ok', already ? 'Chúng tôi đã nhận xác nhận trước đó' : 'Cảm ơn bạn! Đã nhận xác nhận chuyển khoản', null,
         h('ol', { class: 'next' },
-          h('li', null, h('span', { class: 'k' }, '1'), h('span', null, 'Kế toán BIZTECK đối soát giao dịch trong giờ làm việc.')),
+          h('li', null, h('span', { class: 'k' }, '1'), h('span', null, 'Kế toán Zetabiz đối soát giao dịch trong giờ làm việc.')),
           h('li', null, h('span', { class: 'k' }, '2'), h('span', null, 'Khi khớp, hệ thống kích hoạt gói dịch vụ của bạn.')),
           h('li', null, h('span', { class: 'k' }, '3'), h('span', null, 'Thông tin tài khoản đăng nhập được gửi qua email bạn đã đăng ký.')))), contactLine());
       var first = box.querySelector('h2'); if (first) { first.setAttribute('tabindex', '-1'); first.focus(); }
@@ -457,7 +457,7 @@ footer b{color:var(--text);font-weight:600}
   /* ---------- Hiển thị theo trạng thái ---------- */
   function render() {
     var q = quote;
-    document.title = 'Báo giá ' + (q.order_code || '') + ' – BIZTECK';
+    document.title = 'Báo giá ' + (q.order_code || '') + ' – Zetabiz';
     if (q.company && q.company.phone) {
       document.getElementById('hot').setAttribute('href', phoneHref(q.company.phone));
       document.getElementById('hot-n').textContent = q.company.phone;
@@ -481,7 +481,7 @@ footer b{color:var(--text);font-weight:600}
       }
     } else if (s === 'paid' || s === 'processing') {
       active = 3;
-      side.append(stateCard('ok', 'Đã thanh toán', s === 'processing' ? 'Đội ngũ BIZTECK đang khởi tạo và cấu hình hệ thống cho bạn. Thông tin đăng nhập sẽ được gửi qua email.' : 'Cảm ơn bạn! Chúng tôi đang chuẩn bị kích hoạt tài khoản. Thông tin đăng nhập sẽ được gửi qua email.', contactLine()));
+      side.append(stateCard('ok', 'Đã thanh toán', s === 'processing' ? 'Đội ngũ Zetabiz đang khởi tạo và cấu hình hệ thống cho bạn. Thông tin đăng nhập sẽ được gửi qua email.' : 'Cảm ơn bạn! Chúng tôi đang chuẩn bị kích hoạt tài khoản. Thông tin đăng nhập sẽ được gửi qua email.', contactLine()));
     } else if (s === 'completed') {
       allDone = true;
       side.append(stateCard('ok', 'Đã thanh toán và kích hoạt', 'Tài khoản của bạn đã sẵn sàng. Kiểm tra email để nhận thông tin đăng nhập.', contactLine()));
@@ -495,7 +495,7 @@ footer b{color:var(--text);font-weight:600}
     }
     var head = h('div', { class: 'head' },
       h('h1', null, s === 'pending_payment' && p !== 'submitted' ? 'Xác nhận báo giá & thanh toán' : 'Báo giá ' + (q.order_code || '')),
-      h('p', null, 'Xin chào ' + (q.contact_name || q.customer_name || 'quý khách') + ', dưới đây là báo giá BIZTECK dành cho bạn.'));
+      h('p', null, 'Xin chào ' + (q.contact_name || q.customer_name || 'quý khách') + ', dưới đây là báo giá Zetabiz dành cho bạn.'));
     show(steps(active, allDone), head, h('div', { class: 'grid' }, quoteCard(q), side));
   }
 

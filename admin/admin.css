@@ -145,3 +145,5 @@ dl.kv dd{margin:0;word-break:break-word}
   .form-grid{grid-template-columns:1fr}
   .form-grid .span2{grid-column:auto}
 }
+
+.logo-mark{width:30px;height:auto;display:block;flex-shrink:0}.logo-word{font-family:'Poppins','Be Vietnam Pro',sans-serif;font-weight:700;font-size:21px;letter-spacing:.005em;line-height:1}

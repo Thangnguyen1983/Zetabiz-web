@@ -1,6 +1,6 @@
-# BIZTECK – Trang chủ
+# Zetabiz – Trang chủ
 
-Website giới thiệu nền tảng BIZTECK (CÔNG TY MHT BUSINESS SOLUTIONS).
+Website giới thiệu nền tảng Zetabiz (CÔNG TY MHT BUSINESS SOLUTIONS).
 
 - Trang tĩnh một file: `index.html`, không cần build.
 - Triển khai: Vercel, dự án `biztech-web` (team MHTBIZ). Mỗi lần đẩy code lên nhánh `main` sẽ tự cập nhật bản chính thức.

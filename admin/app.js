@@ -1,4 +1,4 @@
-/* BIZTECK Admin – khung dùng chung cho mọi trang quản trị.
+/* Zetabiz Admin – khung dùng chung cho mọi trang quản trị.
    Mỗi trang: <body data-page="leads"> … <main id="main"></main>
    rồi nạp supabase-js, /admin/config.js, /admin/app.js, sau đó gọi:
      BZ.boot(async function (ctx) { ... })   // ctx = { sb, user, roles, can }
@@ -204,7 +204,7 @@
     }));
     const initials = (name || '?').trim().split(/\s+/).map(function (w) { return w[0]; }).slice(-2).join('').toUpperCase();
     const side = h('aside', { class: 'side', id: 'side' },
-      h('a', { class: 'logo', href: '/admin/dashboard.html' }, svg('<circle cx="12" cy="8" r="5" stroke="#1D4ED8" stroke-width="1.6"/><path d="M12 13v8M7 19.5c1.6 1.6 8.4 1.6 10 0M4.5 15.5c3.3-1.6 11.7-1.6 15 0" stroke="#1D4ED8" stroke-width="1.6"/>', 28), 'BIZTECK'),
+      h('a', { class: 'logo', href: '/admin/dashboard.html' }, h('img', { class: 'logo-mark', src: '/assets/zetabiz-mark-64.png', alt: '', width: 28, height: 29 }), h('span', { class: 'logo-word' }, 'Zetabiz')),
       h('div', { class: 'nav-label' }, 'QUẢN TRỊ'),
       nav,
       h('div', { class: 'me' }, h('div', { class: 'avatar' }, initials), h('div', { class: 'who' }, h('b', null, name), h('small', null, roles.map(function (r) { return LABELS.role[r] || r; }).join(', ') || user.email))),

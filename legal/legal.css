@@ -45,3 +45,5 @@ th{background:#F8FAFC;color:var(--navy);font-weight:600}
   .top nav a{padding:6px 12px;font-size:13px;white-space:nowrap}
 }
 @media print{.top,.toc{display:none}.wrap{display:block;padding:0}.doc{border:0;padding:0}body{background:#fff}.ph{background:none}}
+
+.logo-mark{width:30px;height:auto;display:block;flex-shrink:0}.logo-word{font-family:'Poppins','Be Vietnam Pro',sans-serif;font-weight:700;font-size:21px;letter-spacing:.005em;line-height:1}

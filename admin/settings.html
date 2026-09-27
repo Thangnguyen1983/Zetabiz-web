@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>Cài đặt – Quản trị BIZTECK</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231D4ED8'/%3E%3Ccircle cx='16' cy='12' r='5' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M16 17v9M10 24c2 2 10 2 12 0' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+<title>Cài đặt – Quản trị Zetabiz</title>
+<link rel="icon" type="image/png" href="/assets/zetabiz-mark-64.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="/admin/admin.css">
 <style>
 .panel{display:flex;flex-direction:column;gap:16px}
@@ -132,11 +132,11 @@ BZ.boot(async function (ctx) {
     const save = h('button', { type: 'submit', class: 'btn btn-primary' }, 'Lưu thông tin');
     const form = h('form', { class: 'card', novalidate: true },
       h('div', { class: 'card-h' }, h('h2', null, BZ.icon3d('settings'), 'Thông tin doanh nghiệp')),
-      h('div', { class: 'msg info', style: { marginBottom: '14px' } }, 'Thông tin này in trên báo giá gửi khách, chỉ dùng cho BIZTECK (không ảnh hưởng web mhtbiz.com). Thông tin liên hệ ở chân trang chủ sửa ở mục ', h('a', { href: '/admin/content.html#brand' }, 'Nội dung trang'), '.'),
+      h('div', { class: 'msg info', style: { marginBottom: '14px' } }, 'Thông tin này in trên báo giá gửi khách, chỉ dùng cho Zetabiz (không ảnh hưởng web mhtbiz.com). Thông tin liên hệ ở chân trang chủ sửa ở mục ', h('a', { href: '/admin/content.html#brand' }, 'Nội dung trang'), '.'),
       ro ? h('div', { class: 'msg info', style: { marginBottom: '14px' } }, 'Bạn đang xem ở chế độ chỉ đọc. Chỉ Quản trị viên được sửa thông tin này.') : null,
       h('div', { class: 'form-grid' },
         h('div', { class: 'span2' }, BZ.field('Tên công ty *', f.name)),
-        h('div', { class: 'span2' }, BZ.field('Thương hiệu / slogan', f.slogan, 'Ví dụ: MHT BIZ – Phần mềm quản lý tích hợp AI')),
+        h('div', { class: 'span2' }, BZ.field('Thương hiệu / slogan', f.slogan, 'Ví dụ: Zetabiz – Nền tảng ứng dụng SaaS tích hợp AI')),
         BZ.field('Mã số thuế', f.tax_code),
         BZ.field('Tên miền', f.domain, 'Không gồm https://'),
         h('div', { class: 'span2' }, BZ.field('Địa chỉ', f.address)),

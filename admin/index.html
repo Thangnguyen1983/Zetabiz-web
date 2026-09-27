@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>Đăng nhập quản trị – BIZTECK</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231D4ED8'/%3E%3Ccircle cx='16' cy='12' r='5' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M16 17v9M10 24c2 2 10 2 12 0' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+<title>Đăng nhập quản trị – Zetabiz</title>
+<link rel="icon" type="image/png" href="/assets/zetabiz-mark-64.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="/admin/admin.css">
 <style>
 .shell{min-height:100%;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
@@ -43,6 +43,7 @@
   .card{padding:24px}
 }
 @media (prefers-reduced-motion: reduce){.brand canvas{display:none}}
+.logo-mark{width:30px;height:auto;display:block;flex-shrink:0}.logo-word{font-family:'Poppins','Be Vietnam Pro',sans-serif;font-weight:700;font-size:21px;letter-spacing:.005em;line-height:1}
 </style>
 </head>
 <body>
@@ -50,11 +51,10 @@
   <aside class="brand" aria-label="Giới thiệu cổng quản trị">
     <canvas id="bg" aria-hidden="true"></canvas>
     <a class="logo" href="/">
-      <svg width="28" height="28" viewBox="0 0 30 30" fill="none" stroke="#8FB0FF" stroke-width="1.6" aria-hidden="true"><circle cx="15" cy="10" r="6"/><path d="M15 16v10M9 24c2 2 10 2 12 0M6 19c4-2 14-2 18 0"/></svg>
-      BIZTECK
+      <img class="logo-mark" src="/assets/zetabiz-mark-64.png" alt="" width="30" height="31"><span class="logo-word">Zetabiz</span>
     </a>
     <div class="copy">
-      <h1>Cổng quản trị <span>BIZTECK</span></h1>
+      <h1>Cổng quản trị <span>Zetabiz</span></h1>
       <p>Quản lý khách tiềm năng, báo giá, gói dịch vụ và thanh toán cho toàn bộ sản phẩm trên nền tảng.</p>
     </div>
     <div class="perks">
@@ -70,7 +70,7 @@
       <div>
         <span class="eyebrow">KHU VỰC NỘI BỘ</span>
         <h2 style="margin-top:8px">Đăng nhập quản trị</h2>
-        <p class="sub">Dành cho nhân sự MHT BIZ đã được cấp quyền.</p>
+        <p class="sub">Dành cho nhân sự Zetabiz đã được cấp quyền.</p>
       </div>
       <div class="msg" id="login-msg" role="alert" hidden></div>
       <div class="field"><label for="l-email">Email</label><input id="l-email" type="email" autocomplete="username" required placeholder="ten@mhtbiz.com"></div>
