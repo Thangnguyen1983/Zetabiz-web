@@ -22,10 +22,13 @@
   var QUICK = ['Tư vấn giải pháp cho ngành của tôi', 'Nhận báo giá', 'Có cần cài đặt phần mềm không?', 'Gặp chuyên viên tư vấn'];
 
   /* ---------- trạng thái (lưu theo phiên trình duyệt) ---------- */
-  var state = { open: false, msgs: [], leadDone: false, teased: false };
+  var state = { open: false, msgs: [], leadDone: false, teased: false, sid: '' };
+  var remote = null; /* cấu hình từ Quản trị › Đào tạo Trợ lý AI */
+  function newSid() { var a = new Uint8Array(12); (window.crypto || window.msCrypto).getRandomValues(a); return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join(''); }
   function load() { try { var s = JSON.parse(sessionStorage.getItem(CFG.storeKey) || 'null'); if (s && Array.isArray(s.msgs)) state = Object.assign(state, s, { open: false }); } catch (e) {} }
-  function save() { try { sessionStorage.setItem(CFG.storeKey, JSON.stringify({ msgs: state.msgs.slice(-40), leadDone: state.leadDone, teased: state.teased })); } catch (e) {} }
+  function save() { try { sessionStorage.setItem(CFG.storeKey, JSON.stringify({ msgs: state.msgs.slice(-40), leadDone: state.leadDone, teased: state.teased, sid: state.sid })); } catch (e) {} }
   load();
+  if (!/^[a-f0-9]{24}$/.test(state.sid || '')) { try { state.sid = newSid(); } catch (e) { state.sid = String(Date.now()) + Math.random().toString(36).slice(2, 10); } save(); }
 
   /* ---------- giao diện ---------- */
   var css = [
@@ -117,13 +120,13 @@
     panel = el('section', { class: 'zbc-panel', id: 'zbc-panel', role: 'dialog', 'aria-label': 'Chat với Trợ lý Zetabiz', hidden: '' });
     panel.innerHTML =
       '<header class="zbc-head"><div class="zbc-av"><img src="' + CFG.logo + '" alt="" width="26" height="26"></div>' +
-      '<div class="zbc-ttl"><b>Trợ lý Zetabiz</b><span>Thường trả lời ngay</span></div>' +
+      '<div class="zbc-ttl"><b class="zbc-name">Trợ lý Zetabiz</b><span>Thường trả lời ngay</span></div>' +
       '<a class="zbc-ic" href="tel:' + CFG.hotline + '" aria-label="Gọi hotline ' + CFG.hotlineText + '" title="Gọi ' + CFG.hotlineText + '">' + I.phone + '</a>' +
       '<button class="zbc-ic zbc-x" type="button" aria-label="Thu nhỏ khung chat" title="Thu nhỏ">' + I.down + '</button></header>' +
       '<div class="zbc-body" aria-live="polite"></div><div class="zbc-chips"></div>' +
       '<div class="zbc-foot"><form class="zbc-in"><textarea rows="1" maxlength="1000" placeholder="Nhập câu hỏi…" aria-label="Nhập câu hỏi"></textarea>' +
       '<button class="zbc-send" type="submit" aria-label="Gửi" disabled>' + I.send + '</button></form>' +
-      '<div class="zbc-note">Trợ lý AI có thể nhầm lẫn · Hotline <a href="tel:' + CFG.hotline + '" style="color:inherit">' + CFG.hotlineText + '</a></div></div>';
+      '<div class="zbc-note">Trợ lý AI có thể nhầm lẫn · Hội thoại được lưu để cải thiện tư vấn · <a href="' + CFG.privacy + '" target="_blank" rel="noopener" style="color:inherit">Bảo mật</a></div></div>';
 
     root.appendChild(panel); root.appendChild(tease); root.appendChild(launch);
     document.body.appendChild(root);
@@ -183,7 +186,7 @@
   }
   function render() {
     body.innerHTML = '';
-    addBubble('assistant', WELCOME);
+    addBubble('assistant', (remote && remote.greeting) || WELCOME);
     state.msgs.forEach(function (m) { addBubble(m.role, m.content); });
     body.querySelectorAll('.zbc-cta').forEach(function (b, i, all) { if (i < all.length - 1) b.remove(); });
     renderChips();
@@ -192,7 +195,7 @@
   function renderChips() {
     chips.innerHTML = '';
     if (state.msgs.length) return;
-    QUICK.forEach(function (q) {
+    ((remote && remote.quick_replies) || QUICK).forEach(function (q) {
       var c = el('button', { class: 'zbc-chip', type: 'button' }, esc(q));
       c.addEventListener('click', function () { ask(q); });
       chips.appendChild(c);
@@ -216,7 +219,7 @@
     var reply, apiErr = null;
     try {
       var ctrl = new AbortController(); var tm = setTimeout(function () { ctrl.abort(); }, 45000);
-      var r = await fetch(CFG.api, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: state.msgs.slice(-16) }), signal: ctrl.signal });
+      var r = await fetch(CFG.api, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: state.msgs.slice(-16), session: state.sid, page: location.pathname }), signal: ctrl.signal });
       clearTimeout(tm);
       var d = await r.json().catch(function () { return {}; });
       reply = d.reply || null;
@@ -239,7 +242,7 @@
   /* ---------- form để lại thông tin ---------- */
   function transcript() {
     var lines = state.msgs.map(function (m) { var t = m.content.replace(/\[\[FORM\]\]/g, '').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim(); return m.role === 'user' ? 'Khách: ' + t : 'Bot: ' + (t.length > 160 ? t.slice(0, 157) + '…' : t); });
-    var out = '[Từ chatbot website]\n', i = lines.length - 1, acc = [];
+    var out = '[Từ chatbot website · mã hội thoại ' + state.sid.slice(0, 8) + ']\n', i = lines.length - 1, acc = [];
     for (; i >= 0; i--) { if ((out + acc.join('\n')).length + lines[i].length > 1400) break; acc.unshift(lines[i]); }
     return (out + acc.join('\n')).slice(0, 1500);
   }
@@ -297,6 +300,7 @@
         var code = typeof d === 'string' ? d : '';
         f.remove();
         state.leadDone = true;
+        if (code) fetch(CFG.supabaseUrl + '/rest/v1/rpc/chatbot_attach_lead', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: CFG.supabaseKey }, body: JSON.stringify({ _session: state.sid, _code: code }) }).catch(function () {});
         var msg = 'Em đã nhận thông tin của anh/chị **' + name + '**' + (code ? ' (mã yêu cầu **' + code + '**)' : '') + '. Chuyên viên Zetabiz sẽ liên hệ trong giờ làm việc. Cần gấp, anh/chị gọi **' + CFG.hotlineText + '** nhé!';
         state.msgs.push({ role: 'assistant', content: msg }); save();
         addBubble('assistant', msg); scrollEnd();
@@ -309,5 +313,15 @@
     });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build); else build();
+  function start() {
+    build();
+    fetch(CFG.api, { headers: { Accept: 'application/json' } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (c) {
+      if (!c) return;
+      remote = c;
+      if (c.enabled === false) { root.hidden = true; return; }
+      if (c.name) { panel.querySelector('.zbc-name').textContent = c.name; panel.setAttribute('aria-label', 'Chat với ' + c.name); }
+      if (state.open && !state.msgs.length) render();
+    }).catch(function () {});
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

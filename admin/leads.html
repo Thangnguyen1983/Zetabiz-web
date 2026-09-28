@@ -91,6 +91,8 @@ BZ.boot(async function (ctx) {
 
   const search = h('input', { type: 'search', placeholder: 'Tìm tên, email, số điện thoại, công ty, mã yêu cầu…', 'aria-label': 'Tìm khách tiềm năng' });
   search.addEventListener('input', BZ.debounce(function () { state.q = clean(search.value); state.page = 0; loadList(); }, 350));
+  /* mở từ trang khác với ?q=… (ví dụ mã yêu cầu từ hội thoại chatbot) */
+  try { const q0 = new URLSearchParams(location.search).get('q'); if (q0) { search.value = q0.slice(0, 100); state.q = clean(search.value); } } catch (e) {}
   const followChk = h('input', { type: 'checkbox' });
   followChk.addEventListener('change', function () { state.follow = followChk.checked; state.page = 0; loadList(); });
   const toolbar = h('div', { class: 'toolbar' }, search, h('label', { class: 'chk' }, followChk, 'Chỉ khách đến hạn gọi lại'));

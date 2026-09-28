@@ -43,6 +43,7 @@
     payments: ['t-amber', '<rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#fff"/><rect x="2.5" y="8.5" width="19" height="3" fill="#B45309" fill-opacity=".55"/><rect x="5" y="14" width="5" height="2" rx="1" fill="#B45309" fill-opacity=".6"/>'],
     content: ['t-pink', '<rect x="4" y="3" width="16" height="18" rx="2.5" fill="#fff"/><rect x="7" y="6" width="10" height="5" rx="1.2" fill="#DB2777" fill-opacity=".55"/><path d="M7 14.5h10M7 17.5h6" stroke="#DB2777" stroke-width="1.8" stroke-linecap="round"/>'],
     site: ['t-sky', '<circle cx="12" cy="12" r="9" fill="#fff" fill-opacity=".3"/><circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.8"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18" stroke="#fff" stroke-width="1.6"/>'],
+    ai: ['t-violet', '<rect x="4" y="7" width="16" height="12" rx="3.5" fill="#fff"/><path d="M12 3v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="3" r="1.6" fill="#fff"/><circle cx="9" cy="13" r="1.6" fill="#7C3AED"/><circle cx="15" cy="13" r="1.6" fill="#7C3AED"/><path d="M9.5 16.3h5" stroke="#7C3AED" stroke-width="1.6" stroke-linecap="round"/><path d="M2 12v3M22 12v3" stroke="#fff" stroke-width="2" stroke-linecap="round"/>'],
     settings: ['t-slate', '<path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" fill="#fff"/><circle cx="12" cy="12" r="3.2" fill="#475569"/>']
   };
   function icon3d(name, big) {
@@ -57,6 +58,7 @@
     { key: 'payments', label: 'Thanh toán', href: '/admin/payments.html' },
     { key: 'subscriptions', label: 'Khách hàng & gói', href: '/admin/subscriptions.html' },
     { key: 'content', label: 'Nội dung trang', href: '/admin/content.html' },
+    { key: 'ai', label: 'Đào tạo Trợ lý AI', href: '/admin/ai.html' },
     { key: 'settings', label: 'Cài đặt', href: '/admin/settings.html' },
     { key: 'site', label: 'Xem trang chủ', href: '/', ext: true }
   ];
