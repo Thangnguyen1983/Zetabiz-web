@@ -444,8 +444,8 @@ html.lead-open{overflow:hidden}
       <article class="prod">
         <div class="ico" style="background:rgba(79,182,255,.16)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6CC4FF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14 3 11l1-2 7 1 5-6c1-1 3-1 3 0s0 2-1 3l-6 5 1 7-2 1-3-7-3 2v2l-1 1-1-3-3-1 1-1h2z"/></svg></div>
         <div><span class="ind" style="color:var(--c-sky)">ĐẠI LÝ VÉ MÁY BAY</span><h3>Zetabiz SkyAgent</h3></div>
-        <p>Quản lý booking, đại lý cấp dưới và công nợ tập trung một nơi.</p>
-        <ul><li>Booking, xuất vé, đối soát</li><li>Công nợ, hoa hồng đại lý</li><li>AI tư vấn giá cho khách</li></ul>
+        <p>Quản lý vé, công nợ hai chiều, vé đoàn và đại lý cấp dưới trên một nền tảng.</p>
+        <ul><li>Nhập vé từ file hãng hoặc dán PNR/GDS</li><li>Công nợ khách &amp; công nợ hãng tự động</li><li>Vé đoàn: giữ chỗ, đặt cọc, lãi lỗ từng đoàn</li><li>Cổng riêng cho đại lý cấp dưới (F2)</li><li>Tiền tự vào sổ quỹ, sổ cái theo TT99</li><li>Chấm công GPS, lương 3P, KPI tự động</li></ul>
         <a class="btn btn-primary" data-link="skyagent" href="#">Xem giải pháp &amp; báo giá</a>
       </article>
       <article class="prod">
@@ -624,10 +624,10 @@ function bzApplyLinks() {
       rows: [['51A-123.45', 'Thay dầu, lọc gió', 'Đang làm'], ['30G-678.90', 'Bảo dưỡng 40.000 km', 'Chờ phụ tùng'], ['59C-246.80', 'Sơn cản trước', 'Hoàn thành']],
       ai: '3 khách đến hạn bảo dưỡng tuần này. Gửi tin nhắc lịch qua Zalo?', chipT: 'Lịch hẹn tuần này', chipV: '42', note: 'Xe mới vào xưởng · vừa xong' },
     { key: 'Vé máy bay', name: 'Zetabiz SkyAgent · Đại lý vé',
-      kpis: [['Booking hôm nay', '42'], ['Vé chờ xuất', '9'], ['Công nợ đại lý', '126tr']],
-      chart: 'Booking theo hãng bay', center: '42', unit: 'booking', segs: [['Vietnam Airlines', 48], ['Vietjet Air', 34], ['Bamboo Airways', 18]], gT: 'Xuất vé đúng hạn', gV: 91, gTarget: 95,
-      rows: [['SGN → HAN', '2 khách · Thứ 6', 'Chờ xuất'], ['HAN → PQC', '4 khách · Chủ nhật', 'Đã xuất'], ['SGN → DAD', '1 khách · Thứ 2', 'Giữ chỗ']],
-      ai: 'Giá chặng SGN–DAD đang thấp. Gửi ưu đãi cho 58 khách từng hỏi chặng này?', chipT: 'Đại lý cấp 2 đang hoạt động', chipV: '27', note: 'Booking mới từ đại lý · vừa xong' },
+      kpis: [['Vé nhập hôm nay', '42'], ['Khách còn nợ', '9'], ['Công nợ đại lý', '126tr']],
+      chart: 'Vé theo hãng bay', center: '42', unit: 'vé', segs: [['Vietnam Airlines', 48], ['Vietjet Air', 34], ['Bamboo Airways', 18]], gT: 'Thu hồi công nợ đúng hạn', gV: 91, gTarget: 95,
+      rows: [['SGN → HAN', '2 khách · khách lẻ', 'Còn nợ'], ['HAN → PQC', '4 khách · vé đoàn', 'Đã thu cọc'], ['SGN → DAD', '1 khách · đại lý F2', 'Đã đối soát']],
+      ai: 'Đoàn HAN–PQC còn 6 chỗ chưa có tên khách, sắp đến hạn chốt. Nhắc đại lý bổ sung tên?', chipT: 'Đại lý cấp 2 đang hoạt động', chipV: '27', note: 'Vé mới nhập từ file hãng · vừa xong' },
     { key: 'Spa', name: 'Zetabiz SpaCare · Spa',
       kpis: [['Lịch hẹn hôm nay', '26'], ['Liệu trình sắp hết', '11'], ['KTV đang làm', '6']],
       chart: 'Cơ cấu dịch vụ hôm nay', center: '26', unit: 'lịch hẹn', segs: [['Chăm sóc da', 46], ['Gội dưỡng sinh', 32], ['Triệt lông', 22]], gT: 'Tỷ lệ lấp lịch KTV', gV: 74, gTarget: 85,

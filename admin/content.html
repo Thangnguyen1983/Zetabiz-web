@@ -60,7 +60,7 @@ BZ.boot(async function (ctx) {
     },
     products: [
       { key: 'autopro', industry: 'GARAGE Ô TÔ', name: 'Zetabiz AutoPro', desc: 'Quản lý toàn diện xưởng dịch vụ từ tiếp nhận xe đến thanh toán.', features: ['Lệnh sửa chữa, lịch sử xe', 'Kho phụ tùng, chia việc thợ', 'AI nhắc hạn bảo dưỡng'], link: '', visible: true },
-      { key: 'skyagent', industry: 'ĐẠI LÝ VÉ MÁY BAY', name: 'Zetabiz SkyAgent', desc: 'Quản lý booking, đại lý cấp dưới và công nợ tập trung một nơi.', features: ['Booking, xuất vé, đối soát', 'Công nợ, hoa hồng đại lý', 'AI tư vấn giá cho khách'], link: '', visible: true },
+      { key: 'skyagent', industry: 'ĐẠI LÝ VÉ MÁY BAY', name: 'Zetabiz SkyAgent', desc: 'Quản lý vé, công nợ hai chiều, vé đoàn và đại lý cấp dưới trên một nền tảng.', features: ['Nhập vé từ file hãng hoặc dán PNR/GDS', 'Công nợ khách & công nợ hãng tự động', 'Vé đoàn: giữ chỗ, đặt cọc, lãi lỗ từng đoàn', 'Cổng riêng cho đại lý cấp dưới (F2)', 'Tiền tự vào sổ quỹ, sổ cái theo TT99', 'Chấm công GPS, lương 3P, KPI tự động'], link: '', visible: true },
       { key: 'spacare', industry: 'SPA & THẨM MỸ', name: 'Zetabiz SpaCare', desc: 'Giữ chân khách với lịch hẹn, liệu trình và chăm sóc tự động.', features: ['Đặt lịch, thẻ liệu trình', 'Hoa hồng kỹ thuật viên', 'AI nhắc khách quay lại'], link: '', visible: true },
       { key: 'tradehub', industry: 'THƯƠNG MẠI', name: 'Zetabiz TradeHub', desc: 'Bán tại cửa hàng và online, tồn kho luôn khớp giữa các kênh.', features: ['Bán hàng đa kênh', 'Kho, công nợ khách và NCC', 'AI gợi ý nhập hàng'], link: '', visible: true },
       { key: 'factoryone', industry: 'SẢN XUẤT & THƯƠNG MẠI', name: 'Zetabiz FactoryOne', desc: 'Kiểm soát nguyên liệu, lệnh sản xuất và giá thành từng sản phẩm.', features: ['Định mức, lệnh sản xuất', 'Tính giá thành thực tế', 'AI cảnh báo thiếu nguyên liệu'], link: '', visible: true }
@@ -97,7 +97,7 @@ BZ.boot(async function (ctx) {
       const feats = Array.isArray(p.features) ? p.features : def.features;
       out.products.push({
         key: k, industry: str(p.industry, def.industry), name: str(p.name, def.name), desc: str(p.desc, def.desc),
-        features: [0, 1, 2].map(function (i) { return str(feats[i]); }),
+        features: [0, 1, 2, 3, 4, 5].map(function (i) { return str(feats[i]); }),
         link: str(p.link), visible: p.visible === undefined ? true : p.visible !== false
       });
     });
@@ -289,8 +289,8 @@ BZ.boot(async function (ctx) {
           fld('Tên sản phẩm *', bound('input', p, 'name', 'p-' + p.key + '-name', { maxlength: 80, required: true }, function () { title.textContent = (i + 1) + '. ' + (p.name || p.key); })),
           fld('Mô tả ngắn', bound('textarea', p, 'desc', 'p-' + p.key + '-desc', { maxlength: 300, rows: 2 }), 'Tối đa 300 ký tự', 'span2'),
           h('div', { class: 'span2 field' },
-            h('span', { class: 'muted', style: { fontSize: '13px', fontWeight: '500' } }, '3 tính năng nổi bật'),
-            h('div', { class: 'feat3' }, [0, 1, 2].map(function (k) {
+            h('span', { class: 'muted', style: { fontSize: '13px', fontWeight: '500' } }, 'Tính năng nổi bật (3–6 dòng, để trống dòng không dùng)'),
+            h('div', { class: 'feat3' }, [0, 1, 2, 3, 4, 5].map(function (k) {
               return bound('input', p.features, k, 'p-' + p.key + '-f' + k, { maxlength: 120, 'aria-label': 'Tính năng ' + (k + 1) + ' của ' + p.key });
             }))),
           h('div', { class: 'span2 link-row' },

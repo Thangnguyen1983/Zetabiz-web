@@ -36,8 +36,10 @@ function norm(s) {
 const FALLBACK = [
   { k: ['garage', 'gara', 'o to', 'sua xe', 'autopro', 'phu tung'],
     a: '**Zetabiz AutoPro** dành cho garage ô tô: tiếp nhận xe, lệnh sửa chữa, lịch sử xe, kho phụ tùng, chia việc thợ và thanh toán. AI tự nhắc khách đến hạn bảo dưỡng. Anh/chị muốn nhận báo giá theo quy mô xưởng không ạ? [[FORM]]' },
-  { k: ['ve may bay', 'dai ly ve', 'booking', 'skyagent', 'xuat ve'],
-    a: '**Zetabiz SkyAgent** dành cho đại lý vé máy bay: booking, xuất vé, đối soát, quản lý đại lý cấp dưới, công nợ và hoa hồng. AI hỗ trợ tư vấn giá cho khách. Anh/chị để lại thông tin để chuyên viên tư vấn chi tiết nhé. [[FORM]]' },
+  { k: ['xuat ve', 'booking'],
+    a: '**Zetabiz SkyAgent** không kết nối hãng/GDS để đặt chỗ hay xuất vé. Anh/chị vẫn đặt chỗ, xuất vé trên hệ thống của hãng/GDS như hiện nay; SkyAgent dùng để nhập và quản lý vé đã xuất, công nợ khách và hãng, vé đoàn, đại lý cấp dưới và sổ sách. Anh/chị cần em tư vấn phần nào ạ?' },
+  { k: ['ve may bay', 'dai ly ve', 'skyagent'],
+    a: '**Zetabiz SkyAgent** dành cho đại lý vé máy bay: nhập vé từ file hãng hoặc PNR/GDS, công nợ khách và công nợ hãng, vé đoàn, cổng cho đại lý cấp dưới, sổ quỹ – sổ cái và nhân sự – lương. Anh/chị để lại thông tin để nhận bảng giá và tài khoản dùng thử nhé. [[FORM]]' },
   { k: ['spa', 'tham my', 'lieu trinh', 'spacare', 'salon'],
     a: '**Zetabiz SpaCare** dành cho spa & thẩm mỹ: đặt lịch online, thẻ liệu trình, hoa hồng kỹ thuật viên; AI nhắc khách quay lại. Anh/chị muốn em gửi báo giá không ạ? [[FORM]]' },
   { k: ['san xuat', 'nha may', 'xuong', 'factory', 'nguyen lieu', 'gia thanh'],
