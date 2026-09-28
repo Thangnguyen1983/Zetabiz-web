@@ -210,6 +210,19 @@ p{margin:0}
 .prod ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;font-size:13px;color:#C9D3FF}
 .prod ul li::before{content:"· "}
 .prod .btn{margin-top:auto;border-radius:12px;min-height:46px;font-size:14px}
+/* thẻ sản phẩm cao bằng nhau: mô tả tối đa 3 dòng, hiện 3 tính năng, phần còn lại mở bằng "Xem thêm" */
+.prod > p{display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.prod.open > p{display:block;-webkit-line-clamp:unset;line-clamp:unset;overflow:visible}
+.prod ul li.more{display:none}
+.prod.open ul li.more{display:list-item;animation:prodIn .25s ease}
+@keyframes prodIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.prod .more-btn{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;margin-top:-4px;padding:4px 0;border:0;background:none;color:#8FB0FF;font:500 13px var(--font);cursor:pointer}
+.prod .more-btn:hover{color:#B9CCFF;text-decoration:underline}
+.prod .more-btn:focus-visible{outline:2px solid #8FB0FF;outline-offset:3px;border-radius:4px}
+.prod .more-btn svg{transition:transform .2s ease}
+.prod.open .more-btn svg{transform:rotate(180deg)}
+.prods.has-open{align-items:start}
+@media (prefers-reduced-motion: reduce){.prod.open ul li.more{animation:none}.prod .more-btn svg{transition:none}}
 
 /* steps + faq + cta */
 .three{margin-top:44px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
@@ -600,6 +613,56 @@ function bzSafeLink(u) {
   u = u.trim();
   return /^(?:https?:\/\/[^\/\\\u0000- \u007F]|\/(?![\/\\]))[^\u0000- \u007F]*$/i.test(u) ? u : '';
 }
+/* Thẻ sản phẩm: giữ các thẻ cao bằng nhau; tính năng thứ 4 trở đi và mô tả dài mở bằng nút "Xem thêm".
+   Khi mở một thẻ, các thẻ khác giữ nguyên chiều cao (không bị kéo dài theo). */
+var BZ_FEAT_SHOWN = 3;
+function bzProdClamp() {
+  var box = document.querySelector('.prods');
+  if (!box) return;
+  var cards = [].slice.call(box.querySelectorAll(':scope > .prod'));
+  box.classList.remove('has-open');
+  cards.forEach(function (c) { c.style.minHeight = ''; c.classList.remove('open'); var b = c.querySelector('.more-btn'); if (b) b.remove(); });
+  cards.forEach(function (card, idx) {
+    var ul = card.querySelector('ul'), desc = card.querySelector(':scope > p');
+    if (!ul) return;
+    var lis = [].slice.call(ul.children);
+    lis.forEach(function (li, i) { li.classList.toggle('more', i >= BZ_FEAT_SHOWN); });
+    var extra = Math.max(0, lis.length - BZ_FEAT_SHOWN);
+    var longDesc = desc && desc.scrollHeight > desc.clientHeight + 2;
+    if (!extra && !longDesc) return;
+    if (!ul.id) ul.id = 'prod-feats-' + idx;
+    var label = 'Xem thêm' + (extra ? ' ' + extra + ' tính năng' : '');
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'more-btn';
+    btn.setAttribute('aria-expanded', 'false'); btn.setAttribute('aria-controls', ul.id);
+    btn.innerHTML = '<span></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+    btn.firstChild.textContent = label;
+    btn.addEventListener('click', function () {
+      var open = !card.classList.contains('open');
+      if (open && !box.classList.contains('has-open')) {
+        /* chốt chiều cao hiện tại của mọi thẻ trước khi mở, để thẻ khác không bị kéo dài */
+        cards.forEach(function (c) { c.style.minHeight = c.offsetHeight + 'px'; });
+        box.classList.add('has-open');
+      }
+      card.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', String(open));
+      btn.firstChild.textContent = open ? 'Thu gọn' : label;
+      if (!box.querySelector(':scope > .prod.open')) {
+        box.classList.remove('has-open');
+        cards.forEach(function (c) { c.style.minHeight = ''; });
+      }
+    });
+    ul.insertAdjacentElement('afterend', btn);
+  });
+}
+(function () {
+  var w = window.innerWidth, t;
+  window.addEventListener('resize', function () {
+    clearTimeout(t);
+    t = setTimeout(function () { if (window.innerWidth !== w) { w = window.innerWidth; bzProdClamp(); } }, 200);
+  });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (!document.querySelector('.prods.has-open')) bzProdClamp(); });
+})();
 function bzApplyLinks() {
   document.querySelectorAll('[data-link]').forEach(function (a) {
     const url = bzSafeLink(ZETABIZ_LINKS[a.dataset.link]);
@@ -611,6 +674,7 @@ function bzApplyLinks() {
 
 (function () {
   bzApplyLinks();
+  bzProdClamp();
 
   const header = document.getElementById('top');
   const onScroll = function () { header.classList.toggle('scrolled', window.scrollY > 20); };
@@ -1105,6 +1169,7 @@ function bzApplyLinks() {
       /* link sản phẩm: cập nhật bản đồ dùng chung, handler click đọc lúc click */
       if (typeof ZETABIZ_LINKS !== 'undefined') ZETABIZ_LINKS[k] = linkFn(p.link) || DEF_LINKS[k] || '#';
     });
+    if (typeof bzProdClamp === 'function') bzProdClamp();
   }
 
   function applyFaq(list) {
