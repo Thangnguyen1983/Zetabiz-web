@@ -1134,7 +1134,7 @@ function bzApplyLinks() {
       metaEl.appendChild(document.createElement('br'));
       metaEl.appendChild(document.createTextNode(phone + ' · ' + email + ' · © ' + new Date().getFullYear() + ' Zetabiz'));
     }
-    qsa('a[href^="tel:"]').forEach(function (a) { a.setAttribute('href', 'tel:' + tel); a.textContent = phone; });
+    qsa('a[href^="tel:"]').forEach(function (a) { a.setAttribute('href', 'tel:' + tel); if (!a.classList.contains('zbc-ic')) a.textContent = phone; /* nút gọi dạng biểu tượng trong khung chat: giữ biểu tượng */ });
     qsa('a[href^="mailto:"]').forEach(function (a) { a.setAttribute('href', 'mailto:' + email); a.textContent = email; });
   }
 

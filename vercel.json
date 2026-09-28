@@ -1,5 +1,8 @@
 {
   "cleanUrls": false,
+  "regions": [
+    "sin1"
+  ],
   "headers": [
     {
       "source": "/admin/:path*",
