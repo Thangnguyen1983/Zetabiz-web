@@ -180,7 +180,7 @@
     return b;
   }
   function ctaBtn() {
-    var b = el('button', { class: 'zbc-cta', type: 'button' }, 'Để lại thông tin – chuyên viên gọi lại');
+    var b = el('button', { class: 'zbc-cta', type: 'button' }, 'Đăng ký – chuyên viên liên hệ demo & báo giá');
     b.addEventListener('click', function () { b.remove(); showForm(); });
     return b;
   }
@@ -255,7 +255,7 @@
   function showForm() {
     var f = el('form', { class: 'zbc-form', novalidate: '' });
     f.innerHTML =
-      '<b>Để lại thông tin, chuyên viên Zetabiz sẽ gọi lại</b>' +
+      '<b>Đăng ký – chuyên viên Zetabiz sẽ liên hệ demo &amp; báo giá</b>' +
       '<label>Họ tên *<input type="text" name="name" autocomplete="name" maxlength="100" required></label>' +
       '<label>Số điện thoại / Zalo *<input type="tel" name="phone" autocomplete="tel" inputmode="tel" maxlength="20" required></label>' +
       '<label>Email *<input type="email" name="email" autocomplete="email" maxlength="255" required></label>' +
