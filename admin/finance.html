@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script>if(/^(biztech-web|zetabiz)(-mhtbiz)?\.vercel\.app$/.test(location.hostname))location.replace('https://mhtbiz.com'+location.pathname+location.search+location.hash);</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Tổng quan tài chính – Quản trị Zetabiz</title>
+<link rel="icon" type="image/png" href="/assets/zetabiz-mark-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body data-page="finance">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script src="/admin/finance.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, main = ctx.main, vnd = FIN.vnd;
+  const head = BZ.pageHead('Tổng quan tài chính', 'Thu – chi, lãi lỗ, tiền hiện có và những việc tài chính đang chờ xử lý.');
+  main.appendChild(head);
+  if (!FIN.guard(ctx)) return;
+
+  /* ---------- Chọn kỳ ---------- */
+  const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  const q0 = Math.floor(m / 3) * 3;
+  const PERIODS = [
+    { k: 'm', label: 'Tháng này', r: [new Date(y, m, 1), new Date(y, m + 1, 0)] },
+    { k: 'pm', label: 'Tháng trước', r: [new Date(y, m - 1, 1), new Date(y, m, 0)] },
+    { k: 'q', label: 'Quý này', r: [new Date(y, q0, 1), new Date(y, q0 + 3, 0)] },
+    { k: 'y', label: 'Năm nay', r: [new Date(y, 0, 1), new Date(y, 11, 31)] },
+    { k: 'c', label: 'Tùy chọn…' }
+  ];
+  const sel = FIN.selectEl(PERIODS.map(function (p) { return { value: p.k, label: p.label }; }), 'm');
+  sel.setAttribute('aria-label', 'Kỳ báo cáo');
+  const from = h('input', { type: 'date', 'aria-label': 'Từ ngày', hidden: true }), to = h('input', { type: 'date', 'aria-label': 'Đến ngày', hidden: true });
+  head.appendChild(h('div', { class: 'period' }, sel, from, to,
+    ctx.can.finance ? h('a', { class: 'btn btn-primary', href: '/admin/finance-cash.html#new' }, '+ Lập phiếu') : null));
+  function range() {
+    if (sel.value === 'c') return [from.value, to.value];
+    const p = PERIODS.find(function (x) { return x.k === sel.value; });
+    return [FIN.iso(p.r[0]), FIN.iso(p.r[1])];
+  }
+  sel.addEventListener('change', function () {
+    const c = sel.value === 'c';
+    if (c && !from.value) { from.value = FIN.iso(PERIODS[0].r[0]); to.value = FIN.iso(PERIODS[0].r[1]); }
+    from.hidden = to.hidden = !c; load();
+  });
+  from.addEventListener('change', load); to.addEventListener('change', load);
+
+  const body = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '20px' } });
+  main.appendChild(body);
+
+  function kpi(icon, label, value, note, cls) {
+    return h('div', { class: 'kpi' }, BZ.icon3d(icon, true), h('div', null, h('small', null, label), h('b', { class: cls || null, title: vnd(value) }, FIN.short(value)), note ? h('em', null, note) : null));
+  }
+
+  /* Biểu đồ cột đôi thu/chi theo tháng – SVG tự vẽ, không cần thư viện */
+  function chart(rows) {
+    const W = 640, H = 230, L = 56, B = 28, T = 10, R = 8;
+    const max = Math.max(1, ...rows.map(function (r) { return Math.max(r.income, r.expense); }));
+    const step = Math.pow(10, Math.floor(Math.log10(max))); const top = Math.ceil(max / step) * step;
+    const ns = 'http://www.w3.org/2000/svg';
+    const s = document.createElementNS(ns, 'svg');
+    s.setAttribute('viewBox', '0 0 ' + W + ' ' + H); s.setAttribute('role', 'img');
+    s.setAttribute('aria-label', 'Thu và chi theo tháng: ' + rows.map(function (r) { return r.label + ' thu ' + vnd(r.income) + ', chi ' + vnd(r.expense); }).join('; '));
+    function el(tag, a, txt) { const e = document.createElementNS(ns, tag); Object.keys(a).forEach(function (k) { e.setAttribute(k, a[k]); }); if (txt !== undefined) e.textContent = txt; s.appendChild(e); return e; }
+    const ph = H - B - T;
+    for (let i = 0; i <= 4; i++) {
+      const yy = T + ph - ph * i / 4;
+      el('line', { x1: L, x2: W - R, y1: yy, y2: yy, stroke: '#E4E9F2', 'stroke-width': 1 });
+      el('text', { x: L - 8, y: yy + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#5B6785' }, FIN.short(top * i / 4));
+    }
+    const gw = (W - L - R) / Math.max(rows.length, 1), bw = Math.min(22, gw / 3.2);
+    rows.forEach(function (r, i) {
+      const cx = L + gw * i + gw / 2;
+      [['income', '#059669', -1], ['expense', '#DC2626', 1]].forEach(function (k) {
+        const v = r[k[0]], bh = ph * v / top;
+        const b = el('rect', { x: cx + (k[2] < 0 ? -bw - 2 : 2), y: T + ph - bh, width: bw, height: Math.max(bh, v ? 1 : 0), rx: 3, fill: k[1] });
+        const tt = document.createElementNS(ns, 'title'); tt.textContent = (k[0] === 'income' ? 'Thu ' : 'Chi ') + r.label + ': ' + vnd(v); b.appendChild(tt);
+      });
+      el('text', { x: cx, y: H - 8, 'text-anchor': 'middle', 'font-size': 11, fill: '#5B6785' }, r.label);
+    });
+    return h('div', { class: 'chart-box' }, s);
+  }
+
+  function bars(rows, color) {
+    const max = Math.max(1, ...rows.map(function (r) { return r.v; }));
+    return h('div', { class: 'bars' }, rows.map(function (r) {
+      return h('div', { class: 'row' }, h('span', { class: 'lbl', title: r.label }, r.label),
+        h('div', { class: 'track' }, h('span', { style: { width: (r.v / max * 100) + '%', background: color } })), h('span', { class: 'v', title: vnd(r.v) }, FIN.short(r.v)));
+    }));
+  }
+
+  let req = 0;
+  async function load() {
+    const my = ++req, rg = range();
+    if (!rg[0] || !rg[1]) return;
+    body.textContent = ''; body.appendChild(h('p', { class: 'muted' }, 'Đang tải số liệu…'));
+    /* Biểu đồ luôn xem 6 tháng tính đến cuối kỳ đang chọn, để thấy xu hướng */
+    const end = new Date(rg[1]); const c0 = FIN.iso(new Date(end.getFullYear(), end.getMonth() - 5, 1));
+    let s, trend;
+    try { const r = await Promise.all([BZ.rpc('finance_summary', { _from: rg[0], _to: rg[1] }), BZ.rpc('finance_summary', { _from: c0, _to: rg[1] })]); s = r[0]; trend = r[1]; }
+    catch (e) { if (my === req) { body.textContent = ''; body.appendChild(h('div', { class: 'msg err' }, BZ.errText(e))); } return; }
+    if (my !== req) return;
+    body.textContent = '';
+
+    const profit = s.income - s.expense;
+    const cash = s.balances.reduce(function (a, b) { return a + Number(b.balance); }, 0);
+    body.appendChild(h('div', { class: 'kpis' },
+      kpi('finance', 'Tổng thu', s.income, 'Phiếu thu đã thực hiện trong kỳ'),
+      kpi('cashbook', 'Tổng chi', s.expense, 'Phiếu chi đã thực hiện trong kỳ'),
+      kpi('budget', profit >= 0 ? 'Lãi trong kỳ' : 'Lỗ trong kỳ', profit, s.income ? 'Biên ' + Math.round(profit / s.income * 100) + '%' : 'Thu − chi', profit >= 0 ? 'pos' : 'neg'),
+      kpi('debts', 'Tiền hiện có', cash, s.balances.length + ' tài khoản')));
+
+    /* Xu hướng 6 tháng: đủ 6 cột kể cả tháng không phát sinh */
+    const map = {}; trend.by_month.forEach(function (r) { map[r.month] = r; });
+    const rows = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(end.getFullYear(), end.getMonth() - i, 1); const k = FIN.iso(d).slice(0, 7);
+      rows.push({ label: 'T' + (d.getMonth() + 1) + '/' + String(d.getFullYear()).slice(2), income: Number((map[k] || {}).income || 0), expense: Number((map[k] || {}).expense || 0) });
+    }
+    body.appendChild(h('div', { class: 'grid2' },
+      h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Thu – chi 6 tháng'),
+        h('div', { class: 'legend' }, h('span', null, h('i', { style: { background: '#059669' } }), 'Thu'), h('span', null, h('i', { style: { background: '#DC2626' } }), 'Chi'))), chart(rows)),
+      h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Tiền hiện có'), h('a', { href: '/admin/finance-cash.html#accounts', style: { fontSize: '13px' } }, 'Sổ quỹ ›')),
+        s.balances.length ? h('ul', { class: 'list-plain' }, s.balances.map(function (b) {
+          return h('li', null, h('span', null, b.name, h('small', { class: 'muted', style: { display: 'block', fontSize: '12px' } }, FIN.ACC_TYPE[b.type] || '')), h('b', { class: Number(b.balance) < 0 ? 'neg' : null }, vnd(b.balance)));
+        })) : h('p', { class: 'muted' }, 'Chưa có tài khoản tiền.'))));
+
+    const exp = s.by_category.filter(function (c) { return c.type === 'payment'; }).map(function (c) { return { label: c.root, v: Number(c.amount) }; });
+    const inc = s.by_category.filter(function (c) { return c.type === 'receipt'; }).map(function (c) { return { label: c.root, v: Number(c.amount) }; });
+    const P = s.pending, D = s.debts;
+    function todo(text, n, amount, href, kind) {
+      return h('li', null, h('a', { href: href }, text, n !== null ? ' (' + n + ')' : ''), h('b', { class: kind || null }, vnd(amount)));
+    }
+    body.appendChild(h('div', { class: 'grid3' },
+      h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Cơ cấu chi phí')),
+        exp.length ? bars(exp, '#DC2626') : h('p', { class: 'muted' }, 'Chưa có khoản chi nào trong kỳ.'),
+        inc.length ? [h('h3', { class: 'sec-t', style: { marginTop: '18px' } }, 'Nguồn thu'), bars(inc, '#059669')] : null),
+      h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Lãi lỗ theo mảng')),
+        s.by_center.length ? h('div', { class: 'table-wrap' }, h('table', { class: 't', style: { minWidth: '0' } },
+          h('thead', null, h('tr', null, h('th', null, 'Mảng'), h('th', { style: { textAlign: 'right' } }, 'Thu'), h('th', { style: { textAlign: 'right' } }, 'Chi'), h('th', { style: { textAlign: 'right' } }, 'Lãi/lỗ'))),
+          h('tbody', null, s.by_center.map(function (c) {
+            const p = Number(c.income) - Number(c.expense);
+            return h('tr', null, h('td', null, c.name), h('td', { class: 'num', title: vnd(c.income) }, FIN.short(c.income)), h('td', { class: 'num', title: vnd(c.expense) }, FIN.short(c.expense)),
+              h('td', { class: 'num ' + (p >= 0 ? 'pos' : 'neg'), title: vnd(p) }, FIN.short(p)));
+          })))) : h('p', { class: 'muted' }, 'Chưa có số liệu. Khi lập phiếu, chọn "Tính vào" sản phẩm hoặc bộ phận để xem lãi lỗ từng mảng.')),
+      h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Cần xử lý')),
+        h('ul', { class: 'list-plain' },
+          todo('Phiếu chờ duyệt', P.submitted_count, P.submitted_amount, '/admin/finance-cash.html#submitted', P.submitted_count ? 'neg' : null),
+          todo('Đã duyệt, chờ thu/chi', P.approved_count, P.approved_amount, '/admin/finance-cash.html#approved'),
+          todo('Phải thu còn lại', null, D.receivable, '/admin/finance-debts.html'),
+          D.receivable_overdue > 0 ? todo('↳ Phải thu quá hạn', null, D.receivable_overdue, '/admin/finance-debts.html#overdue', 'neg') : null,
+          todo('Phải trả còn lại', null, D.payable, '/admin/finance-debts.html#payable'),
+          D.payable_overdue > 0 ? todo('↳ Phải trả quá hạn', null, D.payable_overdue, '/admin/finance-debts.html#overdue', 'neg') : null,
+          todo('Đơn hàng chờ khách thanh toán', D.orders_unpaid_count, D.orders_unpaid, '/admin/orders.html')))));
+
+    body.appendChild(h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Ngân sách trong kỳ'), h('a', { href: '/admin/finance-budget.html', style: { fontSize: '13px' } }, 'Quản lý ngân sách ›')),
+      s.budgets.length ? h('div', { class: 'bars' }, s.budgets.map(function (b) {
+        const pct = Math.round(Number(b.actual) / Number(b.amount) * 100);
+        return h('div', { class: 'row' }, h('span', { class: 'lbl', title: b.name }, b.name), FIN.budgetBar(Number(b.actual), Number(b.amount), Number(b.warn)),
+          h('span', { class: 'v' + (pct >= 100 ? ' neg' : '') }, FIN.short(b.actual) + ' / ' + FIN.short(b.amount) + ' · ' + pct + '%'));
+      })) : h('p', { class: 'muted' }, 'Chưa đặt ngân sách cho kỳ này. Đặt ngân sách để hệ thống cảnh báo khi chi gần vượt mức.')));
+  }
+  await load();
+});
+</script>
+</body>
+</html>

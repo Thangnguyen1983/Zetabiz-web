@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script>if(/^(biztech-web|zetabiz)(-mhtbiz)?\.vercel\.app$/.test(location.hostname))location.replace('https://mhtbiz.com'+location.pathname+location.search+location.hash);</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Công nợ – Quản trị Zetabiz</title>
+<link rel="icon" type="image/png" href="/assets/zetabiz-mark-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body data-page="debts">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script src="/admin/finance.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, sb = ctx.sb, main = ctx.main, vnd = FIN.vnd, fmt = BZ.fmt;
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const can = ctx.can.finance;
+  const actions = h('div', { class: 'row-actions' });
+  main.appendChild(BZ.pageHead('Công nợ', 'Khoản khách còn nợ MHT BIZ và khoản MHT BIZ còn phải trả nhà cung cấp, đối tác.', actions));
+  if (!FIN.guard(ctx)) return;
+  await FIN.loadLookups();
+  if (can) actions.append(
+    h('button', { type: 'button', class: 'btn btn-ghost', onclick: function () { debtForm(null, 'receivable'); } }, '+ Khoản phải thu'),
+    h('button', { type: 'button', class: 'btn btn-primary', onclick: function () { debtForm(null, 'payable'); } }, '+ Khoản phải trả'));
+
+  const kpiBox = h('div', { class: 'kpis' });
+  main.appendChild(kpiBox);
+  const TABS = [{ k: 'receivable', label: 'Phải thu' }, { k: 'payable', label: 'Phải trả' }, { k: 'overdue', label: 'Quá hạn' }, { k: 'closed', label: 'Đã tất toán / hủy' }, { k: 'parties', label: 'Đối tác' }];
+  let tab = 'receivable';
+  const tabBtns = TABS.map(function (t) { return h('button', { type: 'button', role: 'tab', onclick: function () { tab = t.k; history.replaceState(null, '', t.k === 'receivable' ? location.pathname : '#' + t.k); load(); } }, t.label); });
+  const q = h('input', { type: 'search', placeholder: 'Tìm mã công nợ, tên đối tác…', 'aria-label': 'Tìm' });
+  q.addEventListener('input', BZ.debounce(load, 300));
+  const box = h('div');
+  main.appendChild(h('section', { class: 'card' }, h('div', { class: 'tabs', role: 'tablist' }, tabBtns), h('div', { class: 'toolbar', style: { margin: '14px 0' } }, q), box));
+
+  async function kpis() {
+    const r = await sb.from('finance_debt_balances').select('debt_type,remaining_amount,is_overdue,due_date').in('status', ['open', 'partial']);
+    kpiBox.textContent = '';
+    if (r.error) return;
+    const soon = FIN.iso(new Date(Date.now() + 7 * 864e5));
+    const s = { rec: 0, pay: 0, recOver: 0, payOver: 0, soon: 0 };
+    r.data.forEach(function (d) {
+      const v = Number(d.remaining_amount);
+      if (d.debt_type === 'receivable') { s.rec += v; if (d.is_overdue) s.recOver += v; } else { s.pay += v; if (d.is_overdue) s.payOver += v; }
+      if (!d.is_overdue && d.due_date <= soon) s.soon += v;
+    });
+    function k(icon, label, v, note, cls) { return h('div', { class: 'kpi' }, BZ.icon3d(icon, true), h('div', null, h('small', null, label), h('b', { class: cls || null, title: vnd(v) }, FIN.short(v)), h('em', null, note))); }
+    kpiBox.append(k('finance', 'Phải thu còn lại', s.rec, s.recOver ? 'Quá hạn ' + vnd(s.recOver) : 'Không có khoản quá hạn', s.recOver ? 'neg' : null),
+      k('cashbook', 'Phải trả còn lại', s.pay, s.payOver ? 'Quá hạn ' + vnd(s.payOver) : 'Không có khoản quá hạn', s.payOver ? 'neg' : null),
+      k('debts', 'Đến hạn trong 7 ngày', s.soon, 'Cả phải thu và phải trả'));
+  }
+
+  let rq = 0;
+  async function load() {
+    const my = ++rq;
+    TABS.forEach(function (t, i) { tabBtns[i].setAttribute('aria-selected', t.k === tab ? 'true' : 'false'); });
+    q.hidden = tab === 'parties';
+    box.textContent = '';
+    if (tab === 'parties') return loadParties();
+    box.appendChild(h('p', { class: 'muted' }, 'Đang tải…'));
+    let qq = sb.from('finance_debt_balances').select('*').order('due_date').limit(500);
+    if (tab === 'receivable' || tab === 'payable') qq = qq.eq('debt_type', tab).in('status', ['open', 'partial']);
+    if (tab === 'overdue') qq = qq.eq('is_overdue', true);
+    if (tab === 'closed') qq = qq.in('status', ['paid', 'void']).order('issue_date', { ascending: false });
+    const r = await qq;
+    if (my !== rq) return;
+    box.textContent = '';
+    if (r.error) { box.appendChild(h('div', { class: 'msg err' }, BZ.errText(r.error))); return; }
+    const term = q.value.trim().toLowerCase();
+    const rows = r.data.filter(function (d) { return !term || (d.debt_code + ' ' + (FIN.nameOf(d.counterparty_id) || '') + ' ' + (d.note || '')).toLowerCase().indexOf(term) >= 0; });
+    const COLS = 9;
+    box.appendChild(h('div', { class: 'table-wrap' }, h('table', { class: 't', style: { minWidth: '1000px' } },
+      h('thead', null, h('tr', null, ['Mã', 'Loại', 'Đối tác', 'Phát sinh', 'Hạn trả', 'Giá trị', 'Đã thanh toán', 'Còn lại', 'Trạng thái'].map(function (x, i) { return h('th', { style: i >= 5 && i <= 7 ? { textAlign: 'right' } : null }, x); }))),
+      h('tbody', null, rows.length ? rows.map(function (d) {
+        const days = Math.round((new Date(d.due_date) - new Date(FIN.today())) / 864e5);
+        return h('tr', { class: 'clickable', tabindex: '0', onclick: function () { openDebt(d.debt_id); }, onkeydown: function (e) { if (e.key === 'Enter') openDebt(d.debt_id); } },
+          h('td', null, h('b', null, d.debt_code)), h('td', null, d.debt_type === 'receivable' ? 'Phải thu' : 'Phải trả'),
+          h('td', null, FIN.nameOf(d.counterparty_id) || '—', d.note ? h('small', null, d.note.slice(0, 80)) : null),
+          h('td', null, fmt.date(d.issue_date)),
+          h('td', null, fmt.date(d.due_date), ['open', 'partial'].indexOf(d.status) >= 0 ? h('small', { class: d.is_overdue ? 'neg' : null }, d.is_overdue ? 'Quá hạn ' + (-days) + ' ngày' : days === 0 ? 'Đến hạn hôm nay' : 'Còn ' + days + ' ngày') : null),
+          h('td', { class: 'num' }, vnd(d.original_amount)), h('td', { class: 'num' }, vnd(d.paid_amount)),
+          h('td', { class: 'num' + (d.is_overdue ? ' neg' : '') }, h('b', null, vnd(d.remaining_amount))), h('td', null, FIN.chipOf(FIN.DEBT_STATUS, d.status)));
+      }) : BZ.emptyRow(COLS, tab === 'overdue' ? 'Không có khoản nào quá hạn.' : tab === 'closed' ? 'Chưa có khoản nào tất toán.' : 'Chưa có khoản ' + (tab === 'receivable' ? 'phải thu' : 'phải trả') + ' nào đang mở.')))));
+
+    /* Đơn hàng khách chưa thanh toán cũng là một dạng phải thu: hiện kèm để không bỏ sót */
+    if (tab === 'receivable') {
+      const o = await sb.from('orders').select('id,order_code,product_name,plan_name,contact_name,total_amount,created_at').eq('status', 'pending_payment').order('created_at');
+      if (my !== rq || o.error || !o.data.length) return;
+      box.appendChild(h('div', { style: { marginTop: '22px' } }, h('h3', { class: 'sec-t' }, 'Đơn hàng đang chờ khách thanh toán'),
+        h('p', { class: 'muted', style: { fontSize: '13px', marginBottom: '8px' } }, 'Theo dõi ở trang Báo giá & đơn hàng; khi khách chuyển khoản và được duyệt, tiền tự vào sổ thu.'),
+        h('ul', { class: 'list-plain' }, o.data.map(function (x) {
+          return h('li', null, h('a', { href: '/admin/orders.html#' + x.id }, x.order_code + ' · ' + (x.contact_name || '') + ' · ' + [x.product_name, x.plan_name].filter(Boolean).join(' – ')), h('b', null, vnd(x.total_amount)));
+        }))));
+    }
+  }
+
+  /* ---------- Lập / sửa công nợ ---------- */
+  function debtForm(d, type) {
+    d = d || {}; type = d.debt_type || type;
+    const opened = !d.debt_id || (d.status === 'open' && !Number(d.paid_amount));
+    const partyBox = h('div'); let party;
+    function drawParty(v) {
+      party = FIN.partySelect(v, type === 'receivable' ? ['customer', 'other'] : ['supplier', 'staff', 'other']);
+      party.querySelector('option').textContent = '— Chọn đối tác —';
+      partyBox.textContent = ''; partyBox.append(BZ.field(type === 'receivable' ? 'Khách hàng *' : 'Nhà cung cấp / đối tác *', party),
+        h('button', { type: 'button', class: 'link-btn', style: { fontSize: '13px', marginTop: '4px' }, onclick: function () { FIN.partyForm({ counterparty_type: type === 'receivable' ? 'customer' : 'supplier' }, function (p) { drawParty(p.id); }); } }, '+ Thêm đối tác mới'));
+      if (d.debt_id) party.disabled = true;
+    }
+    drawParty(d.counterparty_id);
+    const amount = FIN.moneyInput(d.original_amount || 0); amount.disabled = !opened;
+    const issue = FIN.dateInput(d.issue_date); issue.disabled = !!d.debt_id;
+    const due = FIN.dateInput(d.due_date || FIN.iso(new Date(Date.now() + 30 * 864e5)));
+    const cc = FIN.centerSelect(d.cost_center_id);
+    const note = h('textarea', { maxlength: '1000', placeholder: type === 'receivable' ? 'VD: Phí triển khai SkyAgent – hợp đồng 12/2026' : 'VD: Hóa đơn thiết kế landing page số 0012' }, d.note || '');
+    BZ.modal({ title: d.debt_id ? 'Sửa công nợ ' + d.debt_code : (type === 'receivable' ? 'Ghi nhận khoản phải thu' : 'Ghi nhận khoản phải trả'), wide: true, body: h('div', { class: 'form-grid' },
+      h('div', { class: 'span2' }, partyBox), BZ.field('Số tiền (đ) *', amount, opened ? null : 'Đã có thanh toán nên không đổi được số tiền'),
+      BZ.field('Tính vào', cc), BZ.field('Ngày phát sinh', issue), BZ.field('Hạn thanh toán *', due),
+      h('div', { class: 'span2' }, BZ.field('Nội dung', note)),
+      !d.debt_id ? h('p', { class: 'span2 muted', style: { fontSize: '13px' } }, 'Ghi nhận công nợ chưa làm thay đổi tiền trong quỹ. Khi ' + (type === 'receivable' ? 'thu được tiền' : 'trả tiền') + ', mở khoản này và bấm "Lập phiếu ' + (type === 'receivable' ? 'thu' : 'chi') + '" để trừ nợ.') : null),
+      actions: [{ label: 'Hủy', kind: 'ghost' }, { label: 'Lưu', kind: 'primary', onClick: async function (close, msg) {
+        const err = !party.value ? 'Chọn đối tác.' : !amount.amount() ? 'Nhập số tiền.' : !due.value ? 'Chọn hạn thanh toán.' : due.value < issue.value ? 'Hạn thanh toán không được trước ngày phát sinh.' : null;
+        if (err) { msg.textContent = err; msg.hidden = false; return; }
+        let r;
+        if (d.debt_id) {
+          const row = { due_date: due.value, cost_center_id: cc.value || null, note: note.value.trim() || null };
+          if (opened) row.original_amount = amount.amount();
+          r = await sb.from('finance_debts').update(row).eq('id', d.debt_id);
+        } else {
+          r = await sb.from('finance_debts').insert({ debt_code: 'TMP', debt_type: type, counterparty_id: party.value, original_amount: amount.amount(), issue_date: issue.value, due_date: due.value, cost_center_id: cc.value || null, note: note.value.trim() || null });
+        }
+        if (r.error) throw r.error;
+        close(); BZ.toast('Đã lưu công nợ.', 'ok'); kpis(); load(); if (d.debt_id) openDebt(d.debt_id);
+      } }] });
+  }
+
+  /* ---------- Chi tiết công nợ ---------- */
+  async function openDebt(id) {
+    history.replaceState(null, '', '#' + id);
+    const r = await sb.from('finance_debt_balances').select('*').eq('debt_id', id).maybeSingle();
+    if (r.error || !r.data) return BZ.toast(r.error ? BZ.errText(r.error) : 'Không tìm thấy công nợ.', 'err');
+    const d = r.data;
+    const al = await sb.from('finance_debt_allocations').select('amount,created_at,transaction_id').eq('debt_id', id).order('created_at');
+    const txIds = (al.data || []).map(function (a) { return a.transaction_id; });
+    const pend = await sb.from('finance_transactions').select('id,tx_code,amount,status,tx_type,doc_date').eq('debt_id', id).in('status', ['draft', 'submitted', 'approved', 'rejected']);
+    const txs = {};
+    if (txIds.length) { const t = await sb.from('finance_transactions').select('id,tx_code,doc_date').in('id', txIds); (t.data || []).forEach(function (x) { txs[x.id] = x; }); }
+    const full = await sb.from('finance_debts').select('void_reason').eq('id', id).maybeSingle();
+    const recv = d.debt_type === 'receivable';
+    const isOpen = ['open', 'partial'].indexOf(d.status) >= 0;
+    const pendingAmt = (pend.data || []).reduce(function (s, x) { return s + Number(x.amount); }, 0);
+
+    const body = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '18px' } },
+      h('div', { class: 'row-actions', style: { alignItems: 'center', gap: '12px' } }, h('span', { class: 'big-amt' + (d.is_overdue ? ' neg' : '') }, vnd(d.remaining_amount)),
+        h('span', { class: 'muted' }, 'còn ' + (recv ? 'phải thu' : 'phải trả') + ' / ' + vnd(d.original_amount)), FIN.chipOf(FIN.DEBT_STATUS, d.status), d.is_overdue ? h('span', { class: 'chip bad' }, 'Quá hạn') : null),
+      FIN.budgetBar(Number(d.paid_amount), Number(d.original_amount), 100, true),
+      h('div', { class: 'form-grid' },
+        FIN.kv([['Loại', recv ? 'Phải thu (khách nợ mình)' : 'Phải trả (mình nợ)'], ['Đối tác', FIN.nameOf(d.counterparty_id)], ['Tính vào', FIN.nameOf(d.cost_center_id)]]),
+        FIN.kv([['Ngày phát sinh', fmt.date(d.issue_date)], ['Hạn thanh toán', fmt.date(d.due_date)], ['Nội dung', d.note]])),
+      d.status === 'void' && full.data && full.data.void_reason ? h('div', { class: 'msg err' }, h('b', null, 'Lý do hủy: '), full.data.void_reason) : null,
+      h('div', null, h('h3', { class: 'sec-t' }, 'Các lần thanh toán'), h('ul', { class: 'timeline' },
+        (al.data || []).length ? al.data.map(function (a) {
+          const t = txs[a.transaction_id] || {};
+          return h('li', { style: { display: 'flex', justifyContent: 'space-between', gap: '12px' } },
+            h('span', null, h('a', { href: '/admin/finance-cash.html#' + a.transaction_id }, t.tx_code || 'Phiếu'), h('small', null, fmt.date(t.doc_date))), h('b', { class: 'mono' }, vnd(a.amount)));
+        }) : h('li', { class: 'muted' }, 'Chưa có lần thanh toán nào.'))),
+      (pend.data || []).length ? h('div', null, h('h3', { class: 'sec-t' }, 'Phiếu đang xử lý (chưa trừ nợ)'), h('ul', { class: 'timeline' }, pend.data.map(function (t) {
+        return h('li', { style: { display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' } },
+          h('a', { href: '/admin/finance-cash.html#' + t.id }, t.tx_code), FIN.txChip(t), h('b', { class: 'mono' }, vnd(t.amount)));
+      }))) : null,
+      FIN.attachBox(ctx, { debt_id: id }));
+
+    const A = [{ label: 'Đóng', kind: 'ghost' }];
+    if (can && isOpen) {
+      A.push({ label: 'Hủy công nợ', kind: 'danger', onClick: async function (c) {
+        const why = await FIN.askReason('Hủy công nợ ' + d.debt_code, 'Lý do hủy * (VD: ghi nhầm, khách được miễn)', 'Hủy công nợ', true);
+        if (!why) return;
+        const u = await sb.from('finance_debts').update({ status: 'void', void_reason: why }).eq('id', id); if (u.error) throw u.error;
+        c(); BZ.toast('Đã hủy công nợ.', 'ok'); kpis(); load();
+      } });
+      A.push({ label: 'Sửa', kind: 'ghost', onClick: function (c) { c(); debtForm(d); } });
+      A.push({ label: recv ? 'Lập phiếu thu' : 'Lập phiếu chi', kind: 'primary', onClick: function (c) {
+        c();
+        const rest = Math.max(0, Number(d.remaining_amount) - pendingAmt);
+        FIN.txForm(ctx, { debt: Object.assign({}, d, { remaining_amount: rest || d.remaining_amount }), onSaved: function () { kpis(); load(); openDebt(id); } });
+      } });
+    }
+    BZ.modal({ title: (recv ? 'Phải thu ' : 'Phải trả ') + d.debt_code, wide: true, body: body, actions: A });
+  }
+
+  /* ---------- Đối tác ---------- */
+  async function loadParties() {
+    box.append(h('div', { class: 'toolbar', style: { marginBottom: '14px', justifyContent: 'flex-end' } },
+      can ? h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: function () { FIN.partyForm(null, function () { load(); }); } }, '+ Thêm đối tác') : null));
+    const r = await sb.from('finance_debt_balances').select('counterparty_id,debt_type,remaining_amount').in('status', ['open', 'partial']);
+    const owe = {};
+    (r.data || []).forEach(function (d) { const o = owe[d.counterparty_id] = owe[d.counterparty_id] || { rec: 0, pay: 0 }; o[d.debt_type === 'receivable' ? 'rec' : 'pay'] += Number(d.remaining_amount); });
+    box.appendChild(h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+      h('thead', null, h('tr', null, ['Đối tác', 'Loại', 'MST · Liên hệ', 'Họ còn nợ mình', 'Mình còn nợ họ', ''].map(function (x, i) { return h('th', { style: i === 3 || i === 4 ? { textAlign: 'right' } : null }, x); }))),
+      h('tbody', null, FIN.L.parties.length ? FIN.L.parties.map(function (p) {
+        const o = owe[p.id] || { rec: 0, pay: 0 };
+        return h('tr', { style: p.is_active ? null : { opacity: '.55' } }, h('td', null, h('b', null, p.name), p.address ? h('small', null, p.address) : null), h('td', null, FIN.PARTY_TYPE[p.counterparty_type]),
+          h('td', null, p.tax_code || '—', h('small', null, [p.phone, p.email].filter(Boolean).join(' · '))),
+          h('td', { class: 'num' }, o.rec ? vnd(o.rec) : '—'), h('td', { class: 'num' }, o.pay ? vnd(o.pay) : '—'),
+          h('td', null, can ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { FIN.partyForm(p, function () { load(); }); } }, 'Sửa') : null));
+      }) : BZ.emptyRow(6, 'Chưa có đối tác. Thêm khách hàng, nhà cung cấp để ghi công nợ và lập phiếu.')))));
+  }
+
+  const k = decodeURIComponent(location.hash.slice(1));
+  if (TABS.some(function (t) { return t.k === k; })) tab = k;
+  kpis(); await load();
+  if (UUID.test(k)) openDebt(k);
+});
+</script>
+</body>
+</html>

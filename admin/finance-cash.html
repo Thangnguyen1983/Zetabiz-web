@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script>if(/^(biztech-web|zetabiz)(-mhtbiz)?\.vercel\.app$/.test(location.hostname))location.replace('https://mhtbiz.com'+location.pathname+location.search+location.hash);</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Thu – chi & sổ quỹ – Quản trị Zetabiz</title>
+<link rel="icon" type="image/png" href="/assets/zetabiz-mark-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body data-page="cashbook">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script src="/admin/finance.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, sb = ctx.sb, main = ctx.main, vnd = FIN.vnd, fmt = BZ.fmt;
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const actions = h('div', { class: 'row-actions' });
+  main.appendChild(BZ.pageHead('Thu – chi & sổ quỹ', 'Lập phiếu thu, phiếu chi, duyệt và theo dõi số dư từng tài khoản.', actions));
+  if (!FIN.guard(ctx)) return;
+  await FIN.loadLookups();
+  if (!ctx.can.finance) main.appendChild(h('div', { class: 'msg info' }, 'Bạn đang ở chế độ xem. Kế toán lập phiếu, Quản trị duyệt phiếu.'));
+  if (ctx.can.finance) actions.append(
+    h('button', { type: 'button', class: 'btn btn-ghost', onclick: function () { FIN.transferForm(ctx, refresh); } }, 'Chuyển quỹ'),
+    h('button', { type: 'button', class: 'btn btn-ghost', onclick: function () { FIN.txForm(ctx, { type: 'receipt', onSaved: refresh }); } }, '+ Phiếu thu'),
+    h('button', { type: 'button', class: 'btn btn-primary', onclick: function () { FIN.txForm(ctx, { type: 'payment', onSaved: refresh }); } }, '+ Phiếu chi'));
+
+  /* ---------- Thẻ ---------- */
+  const TABS = [{ k: 'tx', label: 'Phiếu thu – chi' }, { k: 'ledger', label: 'Sổ quỹ' }, { k: 'accounts', label: 'Tài khoản tiền' }];
+  const panes = {};
+  const tabBtns = TABS.map(function (t) {
+    panes[t.k] = h('div', { hidden: true });
+    return h('button', { type: 'button', role: 'tab', onclick: function () { show(t.k); } }, t.label);
+  });
+  const card = h('section', { class: 'card' }, h('div', { class: 'tabs', role: 'tablist' }, tabBtns), TABS.map(function (t) { return panes[t.k]; }));
+  main.appendChild(card);
+  let current = null;
+  function show(k) {
+    current = k;
+    TABS.forEach(function (t, i) { tabBtns[i].setAttribute('aria-selected', t.k === k ? 'true' : 'false'); panes[t.k].hidden = t.k !== k; });
+    ({ tx: loadTx, ledger: loadLedger, accounts: loadAccounts })[k]();
+  }
+  /* Thêm/sửa tài khoản thì nạp lại danh sách chọn tài khoản ở các bộ lọc */
+  function resetOptions(sel, items, keep, empty) {
+    sel.textContent = '';
+    if (empty !== undefined) sel.appendChild(h('option', { value: '' }, empty));
+    items.forEach(function (i) { sel.appendChild(h('option', { value: i.value }, i.label)); });
+    sel.value = keep && items.some(function (i) { return i.value === keep; }) ? keep : (empty !== undefined ? '' : (items[0] ? items[0].value : ''));
+  }
+  function refresh() {
+    FIN.loadLookups().then(function () {
+      resetOptions(fAcc, FIN.accountItems(true), fAcc.value, 'Mọi tài khoản');
+      resetOptions(lAcc, FIN.accountItems(true), lAcc.value);
+      show(current || 'tx');
+    });
+  }
+
+  /* ================= Phiếu thu – chi ================= */
+  const PAGE = 30;
+  const st = { status: '', type: '', month: '', account: '', q: '', page: 0 };
+  const fStatus = FIN.selectEl([
+    { value: 'submitted', label: 'Chờ duyệt' }, { value: 'approved', label: 'Đã duyệt – chờ thực hiện' }, { value: 'draft', label: 'Nháp' },
+    { value: 'paid', label: 'Đã thực hiện' }, { value: 'rejected', label: 'Bị từ chối' }, { value: 'void', label: 'Đã hủy' }], '', 'Mọi trạng thái');
+  const fType = FIN.selectEl([{ value: 'payment', label: 'Phiếu chi' }, { value: 'receipt', label: 'Phiếu thu' }, { value: 'transfer', label: 'Chuyển quỹ' }], '', 'Mọi loại phiếu');
+  const fMonth = h('input', { type: 'month', 'aria-label': 'Tháng' });
+  const fAcc = FIN.selectEl(FIN.accountItems(true), '', 'Mọi tài khoản');
+  const fQ = h('input', { type: 'search', placeholder: 'Tìm mã phiếu, nội dung, tham chiếu…', 'aria-label': 'Tìm phiếu' });
+  [[fStatus, 'status'], [fType, 'type'], [fMonth, 'month'], [fAcc, 'account']].forEach(function (p) {
+    p[0].addEventListener('change', function () { st[p[1]] = p[0].value; st.page = 0; loadTx(); });
+  });
+  fStatus.setAttribute('aria-label', 'Trạng thái'); fType.setAttribute('aria-label', 'Loại phiếu'); fAcc.setAttribute('aria-label', 'Tài khoản');
+  fQ.addEventListener('input', BZ.debounce(function () { st.q = fQ.value.replace(/[,()%*\\"]/g, ' ').trim(); st.page = 0; loadTx(); }, 350));
+  const COLS = 8;
+  const tbody = h('tbody'); const pager = h('div', { class: 'pager' }); const totals = h('p', { class: 'muted', style: { fontSize: '13px' } });
+  panes.tx.append(h('div', { class: 'toolbar', style: { margin: '14px 0' } }, fQ, fStatus, fType, fMonth, fAcc), totals,
+    h('div', { class: 'table-wrap' }, h('table', { class: 't', style: { minWidth: '1040px' } },
+      h('thead', null, h('tr', null, ['Mã phiếu', 'Ngày', 'Loại', 'Nội dung', 'Tài khoản', 'Đối tác', 'Số tiền', 'Trạng thái'].map(function (t, i) { return h('th', { style: i === 6 ? { textAlign: 'right' } : null }, t); }))), tbody)), pager);
+
+  let rq = 0;
+  async function loadTx() {
+    const my = ++rq; tbody.textContent = ''; tbody.appendChild(BZ.emptyRow(COLS, 'Đang tải…')); pager.textContent = ''; totals.textContent = '';
+    const from = st.page * PAGE;
+    function filt(q) {
+      if (st.status) q = q.eq('status', st.status);
+      if (st.type) q = q.eq('tx_type', st.type);
+      if (st.month) { const r = FIN.monthRange(st.month); q = q.gte('doc_date', r[0]).lte('doc_date', r[1]); }
+      if (st.account) q = q.or('source_account_id.eq.' + st.account + ',target_account_id.eq.' + st.account);
+      if (st.q) { const x = '%' + st.q + '%'; q = q.or('tx_code.ilike.' + x + ',description.ilike.' + x + ',reference.ilike.' + x); }
+      return q;
+    }
+    const r = await filt(sb.from('finance_transactions').select('*', { count: 'exact' })).order('doc_date', { ascending: false }).order('created_at', { ascending: false }).range(from, from + PAGE - 1);
+    if (my !== rq) return;
+    tbody.textContent = '';
+    if (r.error) { tbody.appendChild(BZ.emptyRow(COLS, BZ.errText(r.error))); return; }
+    if (!r.data.length) {
+      tbody.appendChild(BZ.emptyRow(COLS, st.status === 'submitted' ? 'Không có phiếu nào chờ duyệt.' : (st.q || st.status || st.type || st.month || st.account) ? 'Không có phiếu phù hợp bộ lọc.' : 'Chưa có phiếu nào. Bấm "+ Phiếu chi" hoặc "+ Phiếu thu" để bắt đầu.'));
+      return;
+    }
+    r.data.forEach(function (t) {
+      const sign = t.tx_type === 'receipt' ? '+' : t.tx_type === 'payment' ? '−' : '';
+      const acc = t.tx_type === 'transfer' ? (FIN.nameOf(t.source_account_id) || '?') + ' → ' + (FIN.nameOf(t.target_account_id) || '?') : FIN.nameOf(t.target_account_id || t.source_account_id);
+      tbody.appendChild(h('tr', { class: 'clickable', tabindex: '0', onclick: function () { open(t.id); }, onkeydown: function (e) { if (e.key === 'Enter') open(t.id); } },
+        h('td', null, h('b', null, t.tx_code)), h('td', null, fmt.date(t.doc_date)), h('td', null, FIN.TX_TYPE[t.tx_type]),
+        h('td', { style: { maxWidth: '320px' } }, t.description || '—', t.category_id ? h('small', null, FIN.catLabel(t.category_id)) : null),
+        h('td', null, acc || '—'), h('td', null, FIN.nameOf(t.counterparty_id) || '—'),
+        h('td', { class: 'num ' + (t.tx_type === 'receipt' ? 'pos' : t.tx_type === 'payment' ? 'neg' : '') }, sign + vnd(t.amount)),
+        h('td', null, FIN.txChip(t))));
+    });
+    /* Tổng của toàn bộ kết quả lọc (không chỉ trang đang xem) — chỉ tính phiếu đã thực hiện */
+    if (!st.status || st.status === 'paid') {
+      const s = await filt(sb.from('finance_transactions').select('tx_type,amount')).eq('status', 'paid').neq('tx_type', 'transfer').limit(5000);
+      if (my === rq && !s.error) {
+        let i = 0, e = 0; s.data.forEach(function (x) { if (x.tx_type === 'receipt') i += Number(x.amount); else e += Number(x.amount); });
+        totals.append('Đã thực hiện theo bộ lọc: thu ', h('b', { class: 'pos' }, vnd(i)), ' · chi ', h('b', { class: 'neg' }, vnd(e)), ' · chênh lệch ', h('b', { class: i - e >= 0 ? 'pos' : 'neg' }, vnd(i - e)));
+      }
+    }
+    const total = r.count || 0, pages = Math.max(1, Math.ceil(total / PAGE));
+    pager.append(h('span', null, 'Hiển thị ' + (from + 1) + '–' + (from + r.data.length) + ' / ' + fmt.num(total) + ' phiếu'),
+      h('div', { class: 'row-actions' },
+        h('button', { type: 'button', class: 'btn btn-ghost btn-sm', disabled: st.page === 0, onclick: function () { st.page--; loadTx(); } }, '‹ Trước'),
+        h('button', { type: 'button', class: 'btn btn-ghost btn-sm', disabled: st.page >= pages - 1, onclick: function () { st.page++; loadTx(); } }, 'Sau ›')));
+  }
+  function open(id) { history.replaceState(null, '', '#' + id); FIN.txDetail(ctx, id, refresh); }
+
+  /* ================= Sổ quỹ ================= */
+  const lAcc = FIN.selectEl(FIN.accountItems(true), FIN.L.accounts[0] && FIN.L.accounts[0].id, FIN.L.accounts.length ? undefined : '— Chưa có tài khoản —');
+  const lMonth = h('input', { type: 'month', value: FIN.thisMonth(), 'aria-label': 'Tháng' });
+  lAcc.setAttribute('aria-label', 'Tài khoản');
+  const lBox = h('div');
+  panes.ledger.append(h('div', { class: 'toolbar', style: { margin: '14px 0' } }, lAcc, lMonth,
+    h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { window.print(); } }, 'In sổ')), lBox);
+  lAcc.addEventListener('change', loadLedger); lMonth.addEventListener('change', loadLedger);
+  let lq = 0;
+  async function loadLedger() {
+    const my = ++lq; lBox.textContent = '';
+    const a = FIN.L.byId[lAcc.value];
+    if (!a || !lMonth.value) { lBox.appendChild(h('p', { class: 'muted' }, 'Chọn tài khoản và tháng.')); return; }
+    lBox.appendChild(h('p', { class: 'muted' }, 'Đang tải…'));
+    const rg = FIN.monthRange(lMonth.value);
+    const r = await sb.from('finance_transactions').select('id,tx_code,tx_type,doc_date,description,amount,source_account_id,target_account_id,counterparty_id,paid_at')
+      .eq('status', 'paid').or('source_account_id.eq.' + a.id + ',target_account_id.eq.' + a.id).lte('doc_date', rg[1])
+      .order('doc_date').order('paid_at').limit(10000);
+    if (my !== lq) return;
+    lBox.textContent = '';
+    if (r.error) { lBox.appendChild(h('div', { class: 'msg err' }, BZ.errText(r.error))); return; }
+    let open0 = Number(a.opening_balance), tin = 0, tout = 0;
+    const rows = [];
+    r.data.forEach(function (t) {
+      const inn = t.target_account_id === a.id ? Number(t.amount) : 0, out = t.source_account_id === a.id ? Number(t.amount) : 0;
+      if (t.doc_date < rg[0]) { open0 += inn - out; return; }
+      tin += inn; tout += out; rows.push({ t: t, inn: inn, out: out });
+    });
+    let bal = open0;
+    lBox.append(
+      h('div', { class: 'kpis', style: { marginBottom: '16px' } },
+        h('div', { class: 'kpi' }, h('div', null, h('small', null, 'Tồn đầu kỳ'), h('b', null, FIN.short(open0)), h('em', null, vnd(open0)))),
+        h('div', { class: 'kpi' }, h('div', null, h('small', null, 'Thu trong kỳ'), h('b', { class: 'pos' }, FIN.short(tin)), h('em', null, vnd(tin)))),
+        h('div', { class: 'kpi' }, h('div', null, h('small', null, 'Chi trong kỳ'), h('b', { class: 'neg' }, FIN.short(tout)), h('em', null, vnd(tout)))),
+        h('div', { class: 'kpi' }, h('div', null, h('small', null, 'Tồn cuối kỳ'), h('b', null, FIN.short(open0 + tin - tout)), h('em', null, vnd(open0 + tin - tout))))),
+      h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+        h('thead', null, h('tr', null, ['Ngày', 'Số phiếu', 'Diễn giải', 'Thu', 'Chi', 'Tồn'].map(function (x, i) { return h('th', { style: i >= 3 ? { textAlign: 'right' } : null }, x); }))),
+        h('tbody', null,
+          h('tr', null, h('td', { colspan: 5 }, h('b', null, 'Tồn đầu kỳ')), h('td', { class: 'num' }, h('b', null, vnd(open0)))),
+          rows.length ? rows.map(function (x) {
+            bal += x.inn - x.out;
+            return h('tr', { class: 'clickable', onclick: function () { open(x.t.id); } }, h('td', null, fmt.date(x.t.doc_date)), h('td', null, x.t.tx_code),
+              h('td', null, x.t.description || '—', FIN.nameOf(x.t.counterparty_id) ? h('small', null, FIN.nameOf(x.t.counterparty_id)) : null),
+              h('td', { class: 'num pos' }, x.inn ? vnd(x.inn) : ''), h('td', { class: 'num neg' }, x.out ? vnd(x.out) : ''), h('td', { class: 'num' }, vnd(bal)));
+          }) : BZ.emptyRow(6, 'Không phát sinh trong tháng.'),
+          h('tr', null, h('td', { colspan: 3 }, h('b', null, 'Cộng phát sinh / Tồn cuối kỳ')), h('td', { class: 'num pos' }, h('b', null, vnd(tin))), h('td', { class: 'num neg' }, h('b', null, vnd(tout))), h('td', { class: 'num' }, h('b', null, vnd(open0 + tin - tout))))))),
+      h('p', { class: 'muted', style: { fontSize: '13px', marginTop: '10px' } }, 'Sổ chỉ gồm phiếu đã thực hiện, xếp theo ngày chứng từ. Số dư đầu = số dư khai báo ban đầu + phát sinh trước tháng.'));
+  }
+
+  /* ================= Tài khoản tiền ================= */
+  function accountForm(a) {
+    a = a || {};
+    const name = h('input', { type: 'text', maxlength: '150', value: a.name || '', placeholder: 'VD: Vietcombank – TK công ty' });
+    const type = FIN.selectEl(Object.keys(FIN.ACC_TYPE).map(function (k) { return { value: k, label: FIN.ACC_TYPE[k] }; }), a.account_type || 'bank');
+    const bank = h('input', { type: 'text', maxlength: '150', value: a.bank_name || '' });
+    const num = h('input', { type: 'text', maxlength: '40', value: a.account_number || '' });
+    const holder = h('input', { type: 'text', maxlength: '150', value: a.account_holder || '' });
+    const opening = FIN.moneyInput(a.opening_balance || 0);
+    const odate = FIN.dateInput(a.opening_date);
+    const note = h('textarea', { maxlength: '1000' }, a.note || '');
+    const active = h('input', { type: 'checkbox', checked: a.id ? a.is_active : true });
+    const hasTx = !!a.id;
+    BZ.modal({ title: a.id ? 'Sửa tài khoản' : 'Thêm tài khoản tiền', body: h('div', { class: 'form-grid' },
+      h('div', { class: 'span2' }, BZ.field('Tên tài khoản *', name)), BZ.field('Loại', type), BZ.field('Ngân hàng / ví', bank),
+      BZ.field('Số tài khoản', num), BZ.field('Chủ tài khoản', holder),
+      BZ.field('Số dư ban đầu (đ)', opening, 'Số dư thực tế tại ngày bắt đầu dùng hệ thống'), BZ.field('Tính từ ngày', odate),
+      h('div', { class: 'span2' }, BZ.field('Ghi chú', note)),
+      a.id ? h('label', { class: 'span2 check' }, active, ' Đang sử dụng (bỏ chọn để ẩn khỏi danh sách khi lập phiếu)') : null,
+      hasTx ? h('p', { class: 'span2 muted', style: { fontSize: '13px' } }, 'Đổi số dư ban đầu sẽ làm thay đổi số dư hiện tại và sổ quỹ của mọi tháng.') : null),
+      actions: [{ label: 'Hủy', kind: 'ghost' }, { label: 'Lưu', kind: 'primary', onClick: async function (close, msg) {
+        if (name.value.trim().length < 2) { msg.textContent = 'Nhập tên tài khoản.'; msg.hidden = false; return; }
+        const row = { name: name.value.trim(), account_type: type.value, bank_name: bank.value.trim() || null, account_number: num.value.trim() || null,
+          account_holder: holder.value.trim() || null, opening_balance: opening.amount(), opening_date: odate.value || FIN.today(), note: note.value.trim() || null, is_active: active.checked };
+        const r = a.id ? await sb.from('finance_accounts').update(row).eq('id', a.id) : await sb.from('finance_accounts').insert(row);
+        if (r.error) throw r.error;
+        close(); BZ.toast('Đã lưu tài khoản.', 'ok'); refresh();
+      } }] });
+  }
+
+  async function loadAccounts() {
+    const p = panes.accounts; p.textContent = '';
+    p.appendChild(h('div', { class: 'toolbar', style: { margin: '14px 0', justifyContent: 'space-between' } },
+      h('p', { class: 'muted', style: { fontSize: '13px' } }, 'Số dư = số dư ban đầu + phiếu thu đã thực hiện − phiếu chi đã thực hiện ± chuyển quỹ.'),
+      ctx.can.finance ? h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: function () { accountForm(); } }, '+ Thêm tài khoản') : null));
+    p.appendChild(h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+      h('thead', null, h('tr', null, ['Tài khoản', 'Loại', 'Ngân hàng · Số TK', 'Số dư ban đầu', 'Số dư hiện tại', ''].map(function (x, i) { return h('th', { style: i === 3 || i === 4 ? { textAlign: 'right' } : null }, x); }))),
+      h('tbody', null, FIN.L.accounts.length ? FIN.L.accounts.map(function (a) {
+        return h('tr', { style: a.is_active ? null : { opacity: '.55' } },
+          h('td', null, h('b', null, a.name), a.is_active ? null : h('small', null, 'Ngưng sử dụng')), h('td', null, FIN.ACC_TYPE[a.account_type]),
+          h('td', null, [a.bank_name, a.account_number].filter(Boolean).join(' · ') || '—', a.account_holder ? h('small', null, a.account_holder) : null),
+          h('td', { class: 'num' }, vnd(a.opening_balance)), h('td', { class: 'num' + (a.balance < 0 ? ' neg' : '') }, h('b', null, vnd(a.balance))),
+          h('td', null, h('div', { class: 'row-actions' },
+            h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { lAcc.value = a.id; show('ledger'); } }, 'Sổ quỹ'),
+            ctx.can.finance ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { accountForm(a); } }, 'Sửa') : null)));
+      }) : BZ.emptyRow(6, 'Chưa có tài khoản tiền.')))));
+
+    /* Doanh thu từ đơn hàng: khi kế toán duyệt thanh toán đơn hàng, hệ thống tự lập phiếu thu vào đây */
+    const sr = await sb.from('settings').select('value').eq('key', 'finance_sales_mapping').maybeSingle();
+    const map = (sr.data && sr.data.value) || {};
+    const mAcc = FIN.selectEl(FIN.accountItems(), map.account_id || '', '— Chưa chọn —');
+    const mCat = FIN.categorySelect('income', map.income_category_id || '');
+    const mCc = FIN.centerSelect(map.cost_center_id || '');
+    const warn = !map.account_id || !map.income_category_id;
+    p.appendChild(h('div', { class: 'card', style: { marginTop: '20px', background: 'var(--bg)' } },
+      h('div', { class: 'card-h' }, h('h2', null, 'Tự ghi doanh thu bán hàng')),
+      h('p', { class: 'muted', style: { fontSize: '14px', marginBottom: '14px' } }, 'Khi một thanh toán đơn hàng được duyệt ở trang Thanh toán, hệ thống tự lập phiếu thu (đã thu) vào tài khoản dưới đây — không cần nhập tay hai lần.'),
+      warn ? h('div', { class: 'msg err', style: { marginBottom: '14px' } }, 'Chưa chọn tài khoản nhận tiền: thanh toán được duyệt sẽ KHÔNG tự vào sổ thu – chi.') : null,
+      h('div', { class: 'form-grid' }, BZ.field('Tiền vào tài khoản', mAcc), BZ.field('Ghi vào danh mục thu', mCat), BZ.field('Tính vào (mặc định)', mCc),
+        h('div', { style: { alignSelf: 'end' } }, ctx.can.admin ? h('button', { type: 'button', class: 'btn btn-primary', onclick: async function () {
+          const r = await sb.from('settings').update({ value: { account_id: mAcc.value || null, income_category_id: mCat.value || null, cost_center_id: mCc.value || null }, updated_at: new Date().toISOString() }).eq('key', 'finance_sales_mapping');
+          if (r.error) return BZ.toast(BZ.errText(r.error), 'err');
+          BZ.toast('Đã lưu cấu hình ghi doanh thu.', 'ok'); loadAccounts();
+        } }, 'Lưu cấu hình') : h('p', { class: 'muted', style: { fontSize: '13px' } }, 'Chỉ Quản trị đổi được.')))));
+  }
+
+  /* ---------- Điều hướng bằng # ---------- */
+  function fromHash() {
+    const k = decodeURIComponent(location.hash.slice(1));
+    if (UUID.test(k)) { if (current !== 'tx') show('tx'); FIN.txDetail(ctx, k, refresh); return; }
+    if (k === 'accounts' || k === 'ledger') { show(k); return; }
+    if (k === 'submitted' || k === 'approved') { st.status = k; fStatus.value = k; show('tx'); return; }
+    if (k === 'new' && ctx.can.finance) { history.replaceState(null, '', location.pathname); show('tx'); FIN.txForm(ctx, { type: 'payment', onSaved: refresh }); return; }
+    show('tx');
+  }
+  window.addEventListener('hashchange', fromHash);
+  fromHash();
+});
+</script>
+</body>
+</html>

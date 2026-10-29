@@ -44,6 +44,10 @@
     content: ['t-pink', '<rect x="4" y="3" width="16" height="18" rx="2.5" fill="#fff"/><rect x="7" y="6" width="10" height="5" rx="1.2" fill="#DB2777" fill-opacity=".55"/><path d="M7 14.5h10M7 17.5h6" stroke="#DB2777" stroke-width="1.8" stroke-linecap="round"/>'],
     site: ['t-sky', '<circle cx="12" cy="12" r="9" fill="#fff" fill-opacity=".3"/><circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.8"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18" stroke="#fff" stroke-width="1.6"/>'],
     ai: ['t-violet', '<rect x="4" y="7" width="16" height="12" rx="3.5" fill="#fff"/><path d="M12 3v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="3" r="1.6" fill="#fff"/><circle cx="9" cy="13" r="1.6" fill="#7C3AED"/><circle cx="15" cy="13" r="1.6" fill="#7C3AED"/><path d="M9.5 16.3h5" stroke="#7C3AED" stroke-width="1.6" stroke-linecap="round"/><path d="M2 12v3M22 12v3" stroke="#fff" stroke-width="2" stroke-linecap="round"/>'],
+    finance: ['t-green', '<rect x="3" y="13" width="4" height="7" rx="1.2" fill="#fff" fill-opacity=".7"/><rect x="10" y="9" width="4" height="11" rx="1.2" fill="#fff" fill-opacity=".85"/><rect x="17" y="4" width="4" height="16" rx="1.2" fill="#fff"/><path d="M3 9.5 9 5l4 3 7-5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'],
+    cashbook: ['t-amber', '<rect x="3" y="6" width="18" height="13" rx="2.5" fill="#fff"/><path d="M3 9.5h18" stroke="#B45309" stroke-width="1.6" stroke-opacity=".6"/><circle cx="16.5" cy="14" r="2" fill="#B45309" fill-opacity=".7"/><path d="M6 4h12" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-opacity=".7"/>'],
+    budget: ['t-pink', '<circle cx="12" cy="12" r="8.5" fill="#fff" fill-opacity=".55"/><path d="M12 3.5A8.5 8.5 0 0 1 20.5 12H12z" fill="#fff"/><circle cx="12" cy="12" r="3" fill="#DB2777" fill-opacity=".6"/>'],
+    debts: ['t-violet', '<path d="M5 3h10l4 4v14H5z" fill="#fff"/><path d="M8.5 11h7M8.5 14.5h7" stroke="#7C3AED" stroke-width="1.8" stroke-linecap="round"/><path d="M12 6.5v2.5" stroke="#7C3AED" stroke-width="1.8" stroke-linecap="round"/><circle cx="17.5" cy="18" r="3.5" fill="#F59E0B"/><path d="M17.5 16.3v1.9l1.2.8" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/>'],
     settings: ['t-slate', '<path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" fill="#fff"/><circle cx="12" cy="12" r="3.2" fill="#475569"/>']
   };
   function icon3d(name, big) {
@@ -57,7 +61,11 @@
     { key: 'orders', label: 'Báo giá & đơn hàng', href: '/admin/orders.html' },
     { key: 'payments', label: 'Thanh toán', href: '/admin/payments.html' },
     { key: 'subscriptions', label: 'Khách hàng & gói', href: '/admin/subscriptions.html' },
-    { key: 'content', label: 'Nội dung trang', href: '/admin/content.html' },
+    { key: 'finance', label: 'Tổng quan tài chính', href: '/admin/finance.html', section: 'TÀI CHÍNH' },
+    { key: 'cashbook', label: 'Thu – chi & sổ quỹ', href: '/admin/finance-cash.html' },
+    { key: 'budget', label: 'Chi phí & ngân sách', href: '/admin/finance-budget.html' },
+    { key: 'debts', label: 'Công nợ', href: '/admin/finance-debts.html' },
+    { key: 'content', label: 'Nội dung trang', href: '/admin/content.html', section: 'HỆ THỐNG' },
     { key: 'ai', label: 'Đào tạo Trợ lý AI', href: '/admin/ai.html' },
     { key: 'settings', label: 'Cài đặt', href: '/admin/settings.html' },
     { key: 'site', label: 'Xem trang chủ', href: '/', ext: true }
@@ -195,14 +203,18 @@
       admin: has('super_admin', 'admin'),
       superAdmin: has('super_admin'),
       leads: has('super_admin', 'admin', 'sales'),
-      finance: has('super_admin', 'admin', 'finance')
+      finance: has('super_admin', 'admin', 'finance'),
+      /* Tài chính: xem (thêm vai trò Chỉ xem), lập phiếu (Kế toán), duyệt (Quản trị) — khớp can_*_finance trong DB */
+      viewFinance: has('super_admin', 'admin', 'finance', 'viewer'),
+      approveFinance: has('super_admin', 'admin')
     };
     const prof = await sb.from('profiles').select('full_name,email').eq('id', user.id).maybeSingle();
     const name = (prof.data && prof.data.full_name) || user.email;
 
     /* Sidebar */
     const nav = h('nav', { class: 'nav', 'aria-label': 'Menu quản trị' }, NAV.map(function (n) {
-      return h('a', { href: n.href, 'aria-current': n.key === page ? 'page' : null, target: n.ext ? '_blank' : null, rel: n.ext ? 'noopener' : null }, icon3d(n.key), n.label);
+      const link = h('a', { href: n.href, 'aria-current': n.key === page ? 'page' : null, target: n.ext ? '_blank' : null, rel: n.ext ? 'noopener' : null }, icon3d(n.key), n.label);
+      return n.section ? [h('div', { class: 'nav-label', style: { marginTop: '14px' } }, n.section), link] : link;
     }));
     const initials = (name || '?').trim().split(/\s+/).map(function (w) { return w[0]; }).slice(-2).join('').toUpperCase();
     const side = h('aside', { class: 'side', id: 'side' },
