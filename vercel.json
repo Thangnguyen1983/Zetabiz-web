@@ -30,6 +30,27 @@
       ]
     },
     {
+      "source": "/tai-khoan/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
       "source": "/:path*",
       "headers": [
         {
@@ -76,6 +97,21 @@
     {
       "source": "/admin",
       "destination": "/admin/",
+      "permanent": true
+    },
+    {
+      "source": "/portal",
+      "destination": "/tai-khoan/",
+      "permanent": false
+    },
+    {
+      "source": "/portal/:path*",
+      "destination": "/tai-khoan/",
+      "permanent": false
+    },
+    {
+      "source": "/tai-khoan",
+      "destination": "/tai-khoan/",
       "permanent": true
     }
   ]
