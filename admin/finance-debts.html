@@ -18,6 +18,8 @@
 <script src="/admin/config.js"></script>
 <script src="/admin/app.js"></script>
 <script src="/admin/finance.js"></script>
+<script src="/admin/xlsx-lite.js"></script>
+<script src="/admin/finance-export.js"></script>
 <script>
 BZ.boot(async function (ctx) {
   const h = BZ.h, sb = ctx.sb, main = ctx.main, vnd = FIN.vnd, fmt = BZ.fmt;
@@ -39,7 +41,26 @@ BZ.boot(async function (ctx) {
   const q = h('input', { type: 'search', placeholder: 'Tìm mã công nợ, tên đối tác…', 'aria-label': 'Tìm' });
   q.addEventListener('input', BZ.debounce(load, 300));
   const box = h('div');
-  main.appendChild(h('section', { class: 'card' }, h('div', { class: 'tabs', role: 'tablist' }, tabBtns), h('div', { class: 'toolbar', style: { margin: '14px 0' } }, q), box));
+  let lastRows = [];
+  const TITLES = { receivable: 'BẢNG KÊ CÔNG NỢ PHẢI THU', payable: 'BẢNG KÊ CÔNG NỢ PHẢI TRẢ', overdue: 'BẢNG KÊ CÔNG NỢ QUÁ HẠN', closed: 'BẢNG KÊ CÔNG NỢ ĐÃ TẤT TOÁN, ĐÃ HỦY' };
+  const exportBtn = h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: async function () {
+    if (!lastRows.length) return BZ.toast('Không có khoản công nợ nào để xuất.', 'err');
+    exportBtn.disabled = true; try { await FX.debtList(lastRows, TITLES[tab]); } catch (e) { BZ.toast(BZ.errText(e), 'err'); } finally { exportBtn.disabled = false; }
+  } }, '⬇ Xuất Excel');
+  main.appendChild(h('section', { class: 'card' }, h('div', { class: 'tabs', role: 'tablist' }, tabBtns), h('div', { class: 'toolbar', style: { margin: '14px 0' } }, q, exportBtn), box));
+
+  /* Sổ chi tiết thanh toán với người mua / người bán của một đối tác, chọn kỳ */
+  function ledgerDialog(partyId, type) {
+    const y = new Date().getFullYear();
+    const from = h('input', { type: 'date', value: y + '-01-01' }), to = h('input', { type: 'date', value: FIN.today() });
+    const typeSel = FIN.selectEl([{ value: 'receivable', label: 'Phải thu (TK 131 – người mua)' }, { value: 'payable', label: 'Phải trả (TK 331 – người bán)' }], type || 'receivable');
+    BZ.modal({ title: 'Sổ chi tiết thanh toán – ' + (FIN.nameOf(partyId) || ''), body: h('div', { class: 'form-grid' },
+      h('div', { class: 'span2' }, BZ.field('Loại', typeSel)), BZ.field('Từ ngày', from), BZ.field('Đến ngày', to)),
+      actions: [{ label: 'Hủy', kind: 'ghost' }, { label: '⬇ Tải sổ Excel', kind: 'primary', onClick: async function (close, msg) {
+        if (!from.value || !to.value || to.value < from.value) { msg.textContent = 'Chọn khoảng ngày hợp lệ.'; msg.hidden = false; return; }
+        await FX.partyLedger(partyId, typeSel.value, from.value, to.value); close();
+      } }] });
+  }
 
   async function kpis() {
     const r = await sb.from('finance_debt_balances').select('debt_type,remaining_amount,is_overdue,due_date').in('status', ['open', 'partial']);
@@ -62,7 +83,7 @@ BZ.boot(async function (ctx) {
   async function load() {
     const my = ++rq;
     TABS.forEach(function (t, i) { tabBtns[i].setAttribute('aria-selected', t.k === tab ? 'true' : 'false'); });
-    q.hidden = tab === 'parties';
+    q.hidden = exportBtn.hidden = tab === 'parties';
     box.textContent = '';
     if (tab === 'parties') return loadParties();
     box.appendChild(h('p', { class: 'muted' }, 'Đang tải…'));
@@ -76,6 +97,7 @@ BZ.boot(async function (ctx) {
     if (r.error) { box.appendChild(h('div', { class: 'msg err' }, BZ.errText(r.error))); return; }
     const term = q.value.trim().toLowerCase();
     const rows = r.data.filter(function (d) { return !term || (d.debt_code + ' ' + (FIN.nameOf(d.counterparty_id) || '') + ' ' + (d.note || '')).toLowerCase().indexOf(term) >= 0; });
+    lastRows = rows;
     const COLS = 9;
     box.appendChild(h('div', { class: 'table-wrap' }, h('table', { class: 't', style: { minWidth: '1000px' } },
       h('thead', null, h('tr', null, ['Mã', 'Loại', 'Đối tác', 'Phát sinh', 'Hạn trả', 'Giá trị', 'Đã thanh toán', 'Còn lại', 'Trạng thái'].map(function (x, i) { return h('th', { style: i >= 5 && i <= 7 ? { textAlign: 'right' } : null }, x); }))),
@@ -177,7 +199,7 @@ BZ.boot(async function (ctx) {
       }))) : null,
       FIN.attachBox(ctx, { debt_id: id }));
 
-    const A = [{ label: 'Đóng', kind: 'ghost' }];
+    const A = [{ label: 'Đóng', kind: 'ghost' }, { label: '⬇ Sổ chi tiết', kind: 'ghost', onClick: function () { ledgerDialog(d.counterparty_id, d.debt_type); } }];
     if (can && isOpen) {
       A.push({ label: 'Hủy công nợ', kind: 'danger', onClick: async function (c) {
         const why = await FIN.askReason('Hủy công nợ ' + d.debt_code, 'Lý do hủy * (VD: ghi nhầm, khách được miễn)', 'Hủy công nợ', true);
@@ -209,7 +231,9 @@ BZ.boot(async function (ctx) {
         return h('tr', { style: p.is_active ? null : { opacity: '.55' } }, h('td', null, h('b', null, p.name), p.address ? h('small', null, p.address) : null), h('td', null, FIN.PARTY_TYPE[p.counterparty_type]),
           h('td', null, p.tax_code || '—', h('small', null, [p.phone, p.email].filter(Boolean).join(' · '))),
           h('td', { class: 'num' }, o.rec ? vnd(o.rec) : '—'), h('td', { class: 'num' }, o.pay ? vnd(o.pay) : '—'),
-          h('td', null, can ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { FIN.partyForm(p, function () { load(); }); } }, 'Sửa') : null));
+          h('td', null, h('div', { class: 'row-actions' },
+            h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { ledgerDialog(p.id, p.counterparty_type === 'customer' ? 'receivable' : 'payable'); } }, '⬇ Sổ chi tiết'),
+            can ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { FIN.partyForm(p, function () { load(); }); } }, 'Sửa') : null)));
       }) : BZ.emptyRow(6, 'Chưa có đối tác. Thêm khách hàng, nhà cung cấp để ghi công nợ và lập phiếu.')))));
   }
 

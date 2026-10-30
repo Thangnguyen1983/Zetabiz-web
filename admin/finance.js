@@ -369,6 +369,10 @@
       const why = await askReason('Hủy phiếu ' + t.tx_code, 'Lý do hủy * (số dư và công nợ sẽ được trả lại)', 'Hủy phiếu', true);
       if (why) await setStatus(c, { status: 'void', void_reason: why }, 'Đã hủy phiếu, số dư đã được trả lại.');
     } });
+    /* Phiếu thu 01-TT / phiếu chi 02-TT để in, ký: chỉ khi phiếu đã duyệt hoặc đã thực hiện */
+    if (window.FX && (t.status === 'approved' || t.status === 'paid')) {
+      A.splice(1, 0, { label: '⬇ ' + (t.tx_type === 'receipt' ? 'Phiếu thu' : t.tx_type === 'payment' ? 'Phiếu chi' : 'Phiếu') + ' Excel', kind: 'ghost', onClick: function () { return window.FX.voucher(t); } });
+    }
     BZ.modal({ title: (TX_TYPE[t.tx_type] || 'Phiếu') + ' ' + t.tx_code, wide: true, body: body, actions: A });
   }
 

@@ -23,6 +23,8 @@ tr.child td:first-child{padding-left:28px}
 <script src="/admin/config.js"></script>
 <script src="/admin/app.js"></script>
 <script src="/admin/finance.js"></script>
+<script src="/admin/xlsx-lite.js"></script>
+<script src="/admin/finance-export.js"></script>
 <script>
 BZ.boot(async function (ctx) {
   const h = BZ.h, sb = ctx.sb, main = ctx.main, vnd = FIN.vnd, fmt = BZ.fmt;
@@ -67,7 +69,13 @@ BZ.boot(async function (ctx) {
     h('label', { class: 'check' }, 'Áp dụng trong tháng ', bMonth), h('label', { class: 'check' }, bInactive, ' Hiện cả ngân sách đã ngưng'),
     h('span', { style: { flex: '1' } }),
     can ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: copyPrev }, 'Chép ngân sách tháng trước') : null,
+    h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: async function (e) {
+      if (!lastBudgets.length) return BZ.toast('Không có ngân sách nào để xuất.', 'err');
+      const b = e.currentTarget; b.disabled = true;
+      try { await FX.budgets(lastBudgets, 'Áp dụng trong tháng ' + (bMonth.value || FIN.thisMonth()).split('-').reverse().join('/')); } catch (er) { BZ.toast(BZ.errText(er), 'err'); } finally { b.disabled = false; }
+    } }, '⬇ Xuất Excel'),
     can ? h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: function () { budgetForm(); } }, '+ Đặt ngân sách') : null), bBox);
+  let lastBudgets = [], lastCosts = null;
 
   async function loadBudgets() {
     bBox.textContent = ''; bBox.appendChild(h('p', { class: 'muted' }, 'Đang tải…'));
@@ -77,6 +85,7 @@ BZ.boot(async function (ctx) {
     const r = await q;
     bBox.textContent = '';
     if (r.error) { bBox.appendChild(h('div', { class: 'msg err' }, BZ.errText(r.error))); return; }
+    lastBudgets = r.data;
     if (!r.data.length) { bBox.appendChild(h('p', { class: 'empty' }, 'Chưa có ngân sách nào áp dụng trong tháng này. Ví dụ: "Quảng cáo trả phí – 15 triệu/tháng", "Hosting & phần mềm – 5 triệu/tháng".')); return; }
     let tb = 0, ta = 0;
     r.data.forEach(function (b) { if (b.is_active) { tb += Number(b.amount); ta += Number(b.actual_amount); } });
@@ -158,7 +167,11 @@ BZ.boot(async function (ctx) {
   const cCenter = FIN.centerSelect(''); cCenter.querySelector('option').textContent = 'Mọi mảng'; cCenter.setAttribute('aria-label', 'Mảng');
   cMonth.addEventListener('change', loadCosts); cCenter.addEventListener('change', loadCosts);
   const cBox = h('div');
-  panes.costs.append(h('div', { class: 'toolbar', style: { margin: '14px 0' } }, cMonth, cCenter), cBox);
+  panes.costs.append(h('div', { class: 'toolbar', style: { margin: '14px 0' } }, cMonth, cCenter,
+    h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: async function () {
+      if (!lastCosts || !lastCosts.rows.length) return BZ.toast('Không có số liệu chi phí để xuất.', 'err');
+      await FX.costs(lastCosts.rows, lastCosts.sub, lastCosts.tag);
+    } }, '⬇ Xuất Excel')), cBox);
   async function loadCosts() {
     cBox.textContent = ''; cBox.appendChild(h('p', { class: 'muted' }, 'Đang tải…'));
     const cur = cMonth.value || FIN.thisMonth(); const p = cur.split('-').map(Number);
@@ -183,7 +196,14 @@ BZ.boot(async function (ctx) {
       FIN.L.categories.filter(function (c) { return c.parent_id === rt.id; }).forEach(function (c) { if (now[c.id] || before[c.id]) rows.push({ name: c.name, a: now[c.id] || 0, b: before[c.id] || 0 }); });
     });
     if (now.none || before.none) { rows.push({ root: true, name: 'Chưa phân loại', a: now.none || 0, b: before.none || 0 }); total += now.none || 0; totalPrev += before.none || 0; }
-    if (!rows.length) { cBox.appendChild(h('p', { class: 'empty' }, 'Không có khoản chi nào đã thực hiện trong tháng này và tháng trước.')); return; }
+    if (!rows.length) { lastCosts = null; cBox.appendChild(h('p', { class: 'empty' }, 'Không có khoản chi nào đã thực hiện trong tháng này và tháng trước.')); return; }
+    function deltaText(a, b) { if (!b) return a ? 'mới' : ''; const d = Math.round((a - b) / b * 100); return (d > 0 ? '+' : '') + d + '%'; }
+    lastCosts = {
+      sub: 'Tháng ' + cur.split('-').reverse().join('/') + ' so với tháng ' + prevM.split('-').reverse().join('/') + (cCenter.value ? ' · ' + FIN.nameOf(cCenter.value) : ''),
+      tag: cur + (cCenter.value ? '_' + (FIN.L.byId[cCenter.value] || {}).code : ''),
+      rows: rows.map(function (x) { return { root: x.root, name: x.name, a: x.a, b: x.b, pct: total ? Math.round(x.a / total * 100) + '%' : '', delta: deltaText(x.a, x.b) }; })
+        .concat([{ root: true, name: 'TỔNG CHI', a: total, b: totalPrev, pct: '100%', delta: deltaText(total, totalPrev) }])
+    };
     function delta(a, b) {
       if (!b) return a ? h('span', { class: 'delta muted' }, 'mới') : '';
       const d = Math.round((a - b) / b * 100);
@@ -213,14 +233,17 @@ BZ.boot(async function (ctx) {
     const hasKids = c.id && FIN.L.categories.some(function (x) { return x.parent_id === c.id; });
     if (hasKids) parent.disabled = true;
     const active = h('input', { type: 'checkbox', checked: c.id ? c.is_active : true });
+    const glIn = h('input', { type: 'text', maxlength: '6', inputmode: 'numeric', value: c.gl_account || '', placeholder: kind === 'income' ? 'VD: 5113' : 'VD: 6422' });
     BZ.modal({ title: c.id ? 'Sửa danh mục' : (kind === 'income' ? 'Thêm danh mục thu' : 'Thêm danh mục chi'), body: h('div', { style: { display: 'grid', gap: '14px' } },
       BZ.field('Tên danh mục *', name), BZ.field('Thuộc nhóm', parent),
+      BZ.field('Tài khoản kế toán (TK đối ứng)', glIn, 'In ở cột Nợ/Có của phiếu và sổ. Để trống thì dùng TK của nhóm cha. Theo TT133: 5113 doanh thu dịch vụ, 6421 chi phí bán hàng, 6422 chi phí quản lý…'),
       c.id ? h('label', { class: 'check' }, active, ' Đang dùng (bỏ chọn để ẩn khi lập phiếu, số liệu cũ vẫn giữ)') : null,
       c.id ? h('p', { class: 'muted', style: { fontSize: '13px' } }, 'Mã: ' + c.code) : null),
       actions: [{ label: 'Hủy', kind: 'ghost' }, { label: 'Lưu', kind: 'primary', onClick: async function (close, msg) {
         if (name.value.trim().length < 2) { msg.textContent = 'Nhập tên danh mục.'; msg.hidden = false; return; }
         const pr = parent.value ? FIN.L.byId[parent.value] : null;
-        const row = { name: name.value.trim(), parent_id: parent.value || null, is_active: active.checked };
+        if (glIn.value.trim() && !/^[0-9]{3,6}$/.test(glIn.value.trim())) { msg.textContent = 'Tài khoản kế toán chỉ gồm 3–6 chữ số.'; msg.hidden = false; return; }
+        const row = { name: name.value.trim(), parent_id: parent.value || null, is_active: active.checked, gl_account: glIn.value.trim() || null };
         let r;
         if (c.id) r = await sb.from('finance_categories').update(row).eq('id', c.id);
         else {
@@ -238,7 +261,7 @@ BZ.boot(async function (ctx) {
       const roots = FIN.L.categories.filter(function (c) { return c.kind === kind && !c.parent_id; });
       function line(c, child) {
         return h('li', { style: { paddingLeft: child ? '22px' : '0', opacity: c.is_active ? '1' : '.5' } },
-          h('span', null, child ? c.name : h('b', { style: { fontFamily: 'var(--font)' } }, c.name), c.is_active ? null : ' (ngưng)'),
+          h('span', null, child ? c.name : h('b', { style: { fontFamily: 'var(--font)' } }, c.name), c.gl_account ? h('span', { class: 'muted mono', style: { marginLeft: '8px', fontSize: '12px' } }, 'TK ' + c.gl_account) : null, c.is_active ? null : ' (ngưng)'),
           can ? h('span', { class: 'row-actions' },
             !child ? h('button', { type: 'button', class: 'link-btn', style: { fontSize: '13px' }, onclick: function () { categoryForm(null, kind, c.id); } }, '+ Mục con') : null,
             h('button', { type: 'button', class: 'link-btn', style: { fontSize: '13px' }, onclick: function () { categoryForm(c); } }, 'Sửa')) : null);

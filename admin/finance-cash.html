@@ -18,6 +18,8 @@
 <script src="/admin/config.js"></script>
 <script src="/admin/app.js"></script>
 <script src="/admin/finance.js"></script>
+<script src="/admin/xlsx-lite.js"></script>
+<script src="/admin/finance-export.js"></script>
 <script>
 BZ.boot(async function (ctx) {
   const h = BZ.h, sb = ctx.sb, main = ctx.main, vnd = FIN.vnd, fmt = BZ.fmt;
@@ -79,22 +81,34 @@ BZ.boot(async function (ctx) {
   fQ.addEventListener('input', BZ.debounce(function () { st.q = fQ.value.replace(/[,()%*\\"]/g, ' ').trim(); st.page = 0; loadTx(); }, 350));
   const COLS = 8;
   const tbody = h('tbody'); const pager = h('div', { class: 'pager' }); const totals = h('p', { class: 'muted', style: { fontSize: '13px' } });
-  panes.tx.append(h('div', { class: 'toolbar', style: { margin: '14px 0' } }, fQ, fStatus, fType, fMonth, fAcc), totals,
+  panes.tx.append(h('div', { class: 'toolbar', style: { margin: '14px 0' } }, fQ, fStatus, fType, fMonth, fAcc,
+    h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function (e) { exportTx(e.currentTarget); } }, '⬇ Xuất Excel')), totals,
     h('div', { class: 'table-wrap' }, h('table', { class: 't', style: { minWidth: '1040px' } },
       h('thead', null, h('tr', null, ['Mã phiếu', 'Ngày', 'Loại', 'Nội dung', 'Tài khoản', 'Đối tác', 'Số tiền', 'Trạng thái'].map(function (t, i) { return h('th', { style: i === 6 ? { textAlign: 'right' } : null }, t); }))), tbody)), pager);
 
+  function filt(q) {
+    if (st.status) q = q.eq('status', st.status);
+    if (st.type) q = q.eq('tx_type', st.type);
+    if (st.month) { const r = FIN.monthRange(st.month); q = q.gte('doc_date', r[0]).lte('doc_date', r[1]); }
+    if (st.account) q = q.or('source_account_id.eq.' + st.account + ',target_account_id.eq.' + st.account);
+    if (st.q) { const x = '%' + st.q + '%'; q = q.or('tx_code.ilike.' + x + ',description.ilike.' + x + ',reference.ilike.' + x); }
+    return q;
+  }
+  /* Xuất bảng kê theo đúng bộ lọc đang chọn (mọi trang, tối đa 5.000 phiếu) */
+  async function exportTx(btn) {
+    btn.disabled = true;
+    try {
+      const r = await filt(sb.from('finance_transactions').select('*')).order('doc_date').order('created_at').limit(5000);
+      if (r.error) throw r.error;
+      if (!r.data.length) return BZ.toast('Không có phiếu nào theo bộ lọc để xuất.', 'err');
+      const parts = [st.month ? 'Tháng ' + st.month.split('-').reverse().join('/') : 'Mọi thời gian', st.account ? FIN.nameOf(st.account) : null, st.status ? fStatus.options[fStatus.selectedIndex].text : null, st.type ? fType.options[fType.selectedIndex].text : null].filter(Boolean);
+      await FX.txList(r.data, parts.join(' · '));
+    } catch (e) { BZ.toast(BZ.errText(e), 'err'); } finally { btn.disabled = false; }
+  }
   let rq = 0;
   async function loadTx() {
     const my = ++rq; tbody.textContent = ''; tbody.appendChild(BZ.emptyRow(COLS, 'Đang tải…')); pager.textContent = ''; totals.textContent = '';
     const from = st.page * PAGE;
-    function filt(q) {
-      if (st.status) q = q.eq('status', st.status);
-      if (st.type) q = q.eq('tx_type', st.type);
-      if (st.month) { const r = FIN.monthRange(st.month); q = q.gte('doc_date', r[0]).lte('doc_date', r[1]); }
-      if (st.account) q = q.or('source_account_id.eq.' + st.account + ',target_account_id.eq.' + st.account);
-      if (st.q) { const x = '%' + st.q + '%'; q = q.or('tx_code.ilike.' + x + ',description.ilike.' + x + ',reference.ilike.' + x); }
-      return q;
-    }
     const r = await filt(sb.from('finance_transactions').select('*', { count: 'exact' })).order('doc_date', { ascending: false }).order('created_at', { ascending: false }).range(from, from + PAGE - 1);
     if (my !== rq) return;
     tbody.textContent = '';
@@ -135,7 +149,11 @@ BZ.boot(async function (ctx) {
   lAcc.setAttribute('aria-label', 'Tài khoản');
   const lBox = h('div');
   panes.ledger.append(h('div', { class: 'toolbar', style: { margin: '14px 0' } }, lAcc, lMonth,
-    h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { window.print(); } }, 'In sổ')), lBox);
+    h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: async function (e) {
+      const b = e.currentTarget; if (!lAcc.value || !lMonth.value) return BZ.toast('Chọn tài khoản và tháng.', 'err');
+      b.disabled = true; try { await FX.cashBook(lAcc.value, lMonth.value); } catch (er) { BZ.toast(BZ.errText(er), 'err'); } finally { b.disabled = false; }
+    } }, '⬇ Tải sổ Excel (mẫu S07/S08)'),
+    h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { window.print(); } }, 'In nhanh')), lBox);
   lAcc.addEventListener('change', loadLedger); lMonth.addEventListener('change', loadLedger);
   let lq = 0;
   async function loadLedger() {
@@ -189,19 +207,23 @@ BZ.boot(async function (ctx) {
     const opening = FIN.moneyInput(a.opening_balance || 0);
     const odate = FIN.dateInput(a.opening_date);
     const note = h('textarea', { maxlength: '1000' }, a.note || '');
+    const glIn = h('input', { type: 'text', maxlength: '6', inputmode: 'numeric', value: a.gl_account || '', placeholder: '1111 / 1121' });
     const active = h('input', { type: 'checkbox', checked: a.id ? a.is_active : true });
     const hasTx = !!a.id;
     BZ.modal({ title: a.id ? 'Sửa tài khoản' : 'Thêm tài khoản tiền', body: h('div', { class: 'form-grid' },
       h('div', { class: 'span2' }, BZ.field('Tên tài khoản *', name)), BZ.field('Loại', type), BZ.field('Ngân hàng / ví', bank),
       BZ.field('Số tài khoản', num), BZ.field('Chủ tài khoản', holder),
       BZ.field('Số dư ban đầu (đ)', opening, 'Số dư thực tế tại ngày bắt đầu dùng hệ thống'), BZ.field('Tính từ ngày', odate),
+      BZ.field('Tài khoản kế toán', glIn, 'In trên phiếu và sổ. Để trống: tiền mặt 1111, ngân hàng 1121'),
       h('div', { class: 'span2' }, BZ.field('Ghi chú', note)),
       a.id ? h('label', { class: 'span2 check' }, active, ' Đang sử dụng (bỏ chọn để ẩn khỏi danh sách khi lập phiếu)') : null,
       hasTx ? h('p', { class: 'span2 muted', style: { fontSize: '13px' } }, 'Đổi số dư ban đầu sẽ làm thay đổi số dư hiện tại và sổ quỹ của mọi tháng.') : null),
       actions: [{ label: 'Hủy', kind: 'ghost' }, { label: 'Lưu', kind: 'primary', onClick: async function (close, msg) {
         if (name.value.trim().length < 2) { msg.textContent = 'Nhập tên tài khoản.'; msg.hidden = false; return; }
         const row = { name: name.value.trim(), account_type: type.value, bank_name: bank.value.trim() || null, account_number: num.value.trim() || null,
-          account_holder: holder.value.trim() || null, opening_balance: opening.amount(), opening_date: odate.value || FIN.today(), note: note.value.trim() || null, is_active: active.checked };
+          account_holder: holder.value.trim() || null, opening_balance: opening.amount(), opening_date: odate.value || FIN.today(), note: note.value.trim() || null, is_active: active.checked,
+          gl_account: glIn.value.trim() || (type.value === 'cash' ? '1111' : '1121') };
+        if (!/^[0-9]{3,6}$/.test(row.gl_account)) { msg.textContent = 'Tài khoản kế toán chỉ gồm 3–6 chữ số.'; msg.hidden = false; return; }
         const r = a.id ? await sb.from('finance_accounts').update(row).eq('id', a.id) : await sb.from('finance_accounts').insert(row);
         if (r.error) throw r.error;
         close(); BZ.toast('Đã lưu tài khoản.', 'ok'); refresh();
@@ -242,6 +264,26 @@ BZ.boot(async function (ctx) {
           if (r.error) return BZ.toast(BZ.errText(r.error), 'err');
           BZ.toast('Đã lưu cấu hình ghi doanh thu.', 'ok'); loadAccounts();
         } }, 'Lưu cấu hình') : h('p', { class: 'muted', style: { fontSize: '13px' } }, 'Chỉ Quản trị đổi được.')))));
+
+    /* Thông tin in trên phiếu thu/chi và các sổ xuất Excel */
+    const c = await FX.cfg(true);
+    const reg = FIN.selectEl(Object.keys(FX.REG).map(function (k) { return { value: k, label: FX.REG[k].label }; }), c.regime);
+    const inp = function (v, ph) { return h('input', { type: 'text', maxlength: '200', value: v || '', placeholder: ph || '' }); };
+    const uName = inp(c.unit_name), uAddr = inp(c.unit_address), uTax = inp(c.tax_code), dir = inp(c.director, 'Họ tên người ký'), chief = inp(c.chief_accountant, 'Họ tên'), cashier = inp(c.cashier, 'Họ tên'), book = inp(c.book_no, 'VD: 01/2026');
+    p.appendChild(h('div', { class: 'card', style: { marginTop: '20px', background: 'var(--bg)' } },
+      h('div', { class: 'card-h' }, h('h2', null, 'Thông tin in chứng từ & sổ (Excel)')),
+      h('p', { class: 'muted', style: { fontSize: '14px', marginBottom: '14px' } }, 'Dùng cho phiếu thu 01-TT, phiếu chi 02-TT, sổ quỹ tiền mặt, sổ tiền gửi ngân hàng và sổ chi tiết công nợ. Tên người ký điền sẵn dưới chữ ký, để trống thì ký tay.'),
+      h('div', { class: 'form-grid' },
+        h('div', { class: 'span2' }, BZ.field('Chế độ kế toán áp dụng', reg, 'TT133: doanh nghiệp nhỏ và vừa (mặc định). TT99: thay TT200 từ 01/01/2026, DN nhỏ và vừa được chọn áp dụng. Đổi chế độ sẽ đổi số hiệu mẫu sổ và TK 6421/6422 ↔ 641/642.')),
+        h('div', { class: 'span2' }, BZ.field('Tên đơn vị', uName)), h('div', { class: 'span2' }, BZ.field('Địa chỉ', uAddr)),
+        BZ.field('Mã số thuế', uTax), BZ.field('Quyển số phiếu', book),
+        BZ.field('Giám đốc / Người đại diện theo pháp luật', dir), BZ.field('Kế toán trưởng', chief), BZ.field('Thủ quỹ', cashier),
+        h('div', { style: { alignSelf: 'end' } }, ctx.can.admin ? h('button', { type: 'button', class: 'btn btn-primary', onclick: async function () {
+          const v = { regime: reg.value, unit_name: uName.value.trim(), unit_address: uAddr.value.trim(), tax_code: uTax.value.trim(), director: dir.value.trim(), chief_accountant: chief.value.trim(), cashier: cashier.value.trim(), book_no: book.value.trim() };
+          const r = await sb.from('settings').upsert({ key: 'finance_export', value: v, is_public: false, updated_at: new Date().toISOString() });
+          if (r.error) return BZ.toast(BZ.errText(r.error), 'err');
+          await FX.cfg(true); BZ.toast('Đã lưu thông tin in chứng từ.', 'ok');
+        } }, 'Lưu thông tin in') : h('p', { class: 'muted', style: { fontSize: '13px' } }, 'Chỉ Quản trị đổi được.')))));
   }
 
   /* ---------- Điều hướng bằng # ---------- */

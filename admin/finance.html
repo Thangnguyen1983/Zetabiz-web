@@ -18,6 +18,8 @@
 <script src="/admin/config.js"></script>
 <script src="/admin/app.js"></script>
 <script src="/admin/finance.js"></script>
+<script src="/admin/xlsx-lite.js"></script>
+<script src="/admin/finance-export.js"></script>
 <script>
 BZ.boot(async function (ctx) {
   const h = BZ.h, main = ctx.main, vnd = FIN.vnd;
@@ -39,7 +41,13 @@ BZ.boot(async function (ctx) {
   sel.setAttribute('aria-label', 'Kỳ báo cáo');
   const from = h('input', { type: 'date', 'aria-label': 'Từ ngày', hidden: true }), to = h('input', { type: 'date', 'aria-label': 'Đến ngày', hidden: true });
   head.appendChild(h('div', { class: 'period' }, sel, from, to,
+    h('button', { type: 'button', class: 'btn btn-ghost', onclick: async function (e) {
+      if (!last) return BZ.toast('Số liệu chưa tải xong.', 'err');
+      const b = e.currentTarget; b.disabled = true;
+      try { await FX.overview(last.s, last.rg, last.rows); } catch (er) { BZ.toast(BZ.errText(er), 'err'); } finally { b.disabled = false; }
+    } }, '⬇ Tải báo cáo Excel'),
     ctx.can.finance ? h('a', { class: 'btn btn-primary', href: '/admin/finance-cash.html#new' }, '+ Lập phiếu') : null));
+  let last = null;
   function range() {
     if (sel.value === 'c') return [from.value, to.value];
     const p = PERIODS.find(function (x) { return x.k === sel.value; });
@@ -62,7 +70,7 @@ BZ.boot(async function (ctx) {
   /* Biểu đồ cột đôi thu/chi theo tháng – SVG tự vẽ, không cần thư viện */
   function chart(rows) {
     const W = 640, H = 230, L = 56, B = 28, T = 10, R = 8;
-    const max = Math.max(1, ...rows.map(function (r) { return Math.max(r.income, r.expense); }));
+    const max = Math.max(1000000, ...rows.map(function (r) { return Math.max(r.income, r.expense); }));
     const step = Math.pow(10, Math.floor(Math.log10(max))); const top = Math.ceil(max / step) * step;
     const ns = 'http://www.w3.org/2000/svg';
     const s = document.createElementNS(ns, 'svg');
@@ -124,6 +132,7 @@ BZ.boot(async function (ctx) {
       const d = new Date(end.getFullYear(), end.getMonth() - i, 1); const k = FIN.iso(d).slice(0, 7);
       rows.push({ label: 'T' + (d.getMonth() + 1) + '/' + String(d.getFullYear()).slice(2), income: Number((map[k] || {}).income || 0), expense: Number((map[k] || {}).expense || 0) });
     }
+    last = { s: s, rg: rg, rows: rows };
     body.appendChild(h('div', { class: 'grid2' },
       h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Thu – chi 6 tháng'),
         h('div', { class: 'legend' }, h('span', null, h('i', { style: { background: '#059669' } }), 'Thu'), h('span', null, h('i', { style: { background: '#DC2626' } }), 'Chi'))), chart(rows)),
