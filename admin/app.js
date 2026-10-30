@@ -48,6 +48,10 @@
     cashbook: ['t-amber', '<rect x="3" y="6" width="18" height="13" rx="2.5" fill="#fff"/><path d="M3 9.5h18" stroke="#B45309" stroke-width="1.6" stroke-opacity=".6"/><circle cx="16.5" cy="14" r="2" fill="#B45309" fill-opacity=".7"/><path d="M6 4h12" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-opacity=".7"/>'],
     budget: ['t-pink', '<circle cx="12" cy="12" r="8.5" fill="#fff" fill-opacity=".55"/><path d="M12 3.5A8.5 8.5 0 0 1 20.5 12H12z" fill="#fff"/><circle cx="12" cy="12" r="3" fill="#DB2777" fill-opacity=".6"/>'],
     debts: ['t-violet', '<path d="M5 3h10l4 4v14H5z" fill="#fff"/><path d="M8.5 11h7M8.5 14.5h7" stroke="#7C3AED" stroke-width="1.8" stroke-linecap="round"/><path d="M12 6.5v2.5" stroke="#7C3AED" stroke-width="1.8" stroke-linecap="round"/><circle cx="17.5" cy="18" r="3.5" fill="#F59E0B"/><path d="M17.5 16.3v1.9l1.2.8" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/>'],
+    catalog: ['t-blue', '<rect x="3" y="4" width="8" height="7" rx="1.6" fill="#fff"/><rect x="13" y="4" width="8" height="7" rx="1.6" fill="#fff" fill-opacity=".7"/><rect x="3" y="13" width="8" height="7" rx="1.6" fill="#fff" fill-opacity=".7"/><path d="M14.5 16.5h5M17 14v5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>'],
+    receipts: ['t-green', '<path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z" fill="#fff"/><path d="M9 8h6M9 11.5h6M9 15h4" stroke="#047857" stroke-width="1.6" stroke-linecap="round"/>'],
+    support: ['t-sky', '<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4h0A2.5 2.5 0 0 1 4 13.5z" fill="#fff"/><circle cx="9" cy="10" r="1.2" fill="#0369A1"/><circle cx="12" cy="10" r="1.2" fill="#0369A1"/><circle cx="15" cy="10" r="1.2" fill="#0369A1"/>'],
+    audit: ['t-slate', '<rect x="5" y="3" width="14" height="18" rx="2.5" fill="#fff"/><path d="M8.5 8h7M8.5 11.5h7M8.5 15h4" stroke="#475569" stroke-width="1.6" stroke-linecap="round"/><circle cx="17" cy="17" r="3.5" fill="#F59E0B"/><path d="M17 15.5v1.7l1 .7" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/>'],
     settings: ['t-slate', '<path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" fill="#fff"/><circle cx="12" cy="12" r="3.2" fill="#475569"/>']
   };
   function icon3d(name, big) {
@@ -61,6 +65,9 @@
     { key: 'orders', label: 'Báo giá & đơn hàng', href: '/admin/orders.html' },
     { key: 'payments', label: 'Thanh toán', href: '/admin/payments.html' },
     { key: 'subscriptions', label: 'Khách hàng & gói', href: '/admin/subscriptions.html' },
+    { key: 'support', label: 'Hỗ trợ khách hàng', href: '/admin/support.html' },
+    { key: 'receipts', label: 'Chứng từ thanh toán', href: '/admin/receipts.html' },
+    { key: 'catalog', label: 'Sản phẩm & bảng giá', href: '/admin/catalog.html' },
     { key: 'finance', label: 'Tổng quan tài chính', href: '/admin/finance.html', section: 'TÀI CHÍNH' },
     { key: 'cashbook', label: 'Thu – chi & sổ quỹ', href: '/admin/finance-cash.html' },
     { key: 'budget', label: 'Chi phí & ngân sách', href: '/admin/finance-budget.html' },
@@ -68,6 +75,7 @@
     { key: 'content', label: 'Nội dung trang', href: '/admin/content.html', section: 'HỆ THỐNG' },
     { key: 'ai', label: 'Đào tạo Trợ lý AI', href: '/admin/ai.html' },
     { key: 'settings', label: 'Cài đặt', href: '/admin/settings.html' },
+    { key: 'audit', label: 'Nhật ký thao tác', href: '/admin/audit.html' },
     { key: 'site', label: 'Xem trang chủ', href: '/', ext: true }
   ];
 
@@ -235,6 +243,34 @@
     setMenu(false); mq.addEventListener('change', function () { setMenu(false); });
     menuBtn.addEventListener('click', function () { setMenu(!side.classList.contains('open')); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && side.classList.contains('open')) { setMenu(false); menuBtn.focus(); } });
+
+    /* Chuông thông báo nội bộ: việc mới cần xử lý (khách tiềm năng, thanh toán, yêu cầu hỗ trợ…) */
+    const bellN = h('span', { class: 'bell-n', hidden: true });
+    const bell = h('button', { type: 'button', class: 'btn btn-ghost bell', 'aria-label': 'Thông báo', title: 'Thông báo' }, svg('<path d="M12 3a6 6 0 0 0-6 6v3.5L4.5 15v1.5h15V15L18 12.5V9a6 6 0 0 0-6-6zM10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>', 20), bellN);
+    side.querySelector('.logo').after(bell);
+    async function loadBell() {
+      const n = await sb.from('notifications').select('id,title,body,link_to,level,created_at').eq('audience', 'staff').order('created_at', { ascending: false }).limit(40);
+      const rd = await sb.from('notification_reads').select('notification_id').eq('user_id', user.id);
+      if (n.error) return [];
+      const read = new Set((rd.data || []).map(function (x) { return x.notification_id; }));
+      const list = n.data.map(function (x) { x.unread = !read.has(x.id); return x; });
+      const c = list.filter(function (x) { return x.unread; }).length;
+      bellN.textContent = c > 9 ? '9+' : String(c); bellN.hidden = !c;
+      return list;
+    }
+    bell.addEventListener('click', async function () {
+      const list = await loadBell();
+      const ul = h('ul', { class: 'timeline' }, list.length ? list.map(function (x) {
+        return h('li', { style: x.unread ? { borderLeft: '3px solid var(--primary)' } : null },
+          x.link_to ? h('a', { href: x.link_to }, h('b', null, x.title)) : h('b', null, x.title), x.body ? h('div', null, x.body) : null, h('small', null, fmt.dateTime(x.created_at)));
+      }) : h('li', { class: 'muted' }, 'Chưa có thông báo.'));
+      modal({ title: 'Thông báo', body: ul, actions: [{ label: 'Đóng', kind: 'ghost' }, { label: 'Đánh dấu đã đọc hết', kind: 'primary', onClick: async function (close) {
+        const rows = list.filter(function (x) { return x.unread; }).map(function (x) { return { notification_id: x.id, user_id: user.id }; });
+        if (rows.length) await sb.from('notification_reads').upsert(rows, { onConflict: 'notification_id,user_id', ignoreDuplicates: true });
+        close(); loadBell();
+      } }] });
+    });
+    loadBell();
 
     gate.remove();
     try { await render({ sb: sb, user: user, roles: roles, can: can, name: name, main: main }); }

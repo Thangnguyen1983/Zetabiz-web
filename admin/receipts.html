@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script>if(/^(biztech-web|zetabiz)(-mhtbiz)?\.vercel\.app$/.test(location.hostname))location.replace('https://mhtbiz.com'+location.pathname+location.search+location.hash);</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Chứng từ thanh toán – Quản trị Zetabiz</title>
+<link rel="icon" type="image/png" href="/assets/zetabiz-mark-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body data-page="receipts">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script src="/admin/finance.js"></script>
+<script src="/admin/xlsx-lite.js"></script>
+<script src="/admin/finance-export.js"></script>
+<script src="/admin/receipt-doc.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, sb = ctx.sb, main = ctx.main, fmt = BZ.fmt;
+  const ST = { draft: ['Nháp', 'info'], issued: ['Đã phát hành', 'ok'], cancelled: ['Đã hủy', 'bad'] };
+  main.appendChild(BZ.pageHead('Chứng từ thanh toán', 'Tự phát hành khi kế toán duyệt một khoản thanh toán. Đây là chứng từ xác nhận đã thu tiền, không thay hóa đơn GTGT.'));
+  const q = h('input', { type: 'search', placeholder: 'Tìm số chứng từ, mã đơn, tên khách…', 'aria-label': 'Tìm' });
+  const fSt = h('select', { 'aria-label': 'Trạng thái' }, h('option', { value: '' }, 'Mọi trạng thái'), Object.keys(ST).map(function (k) { return h('option', { value: k }, ST[k][0]); }));
+  const tbody = h('tbody');
+  main.appendChild(h('section', { class: 'card' }, h('div', { class: 'toolbar', style: { marginBottom: '12px' } }, q, fSt),
+    h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+      h('thead', null, h('tr', null, ['Số chứng từ', 'Ngày', 'Khách hàng', 'Dịch vụ', 'Đơn', 'Tổng tiền', 'Trạng thái'].map(function (x, i) { return h('th', { style: i === 5 ? { textAlign: 'right' } : null }, x); }))), tbody))));
+  q.addEventListener('input', BZ.debounce(load, 300)); fSt.addEventListener('change', load);
+
+  async function load() {
+    tbody.textContent = ''; tbody.appendChild(BZ.emptyRow(7, 'Đang tải…'));
+    let qq = sb.from('payment_receipts').select('*').order('receipt_date', { ascending: false }).order('created_at', { ascending: false }).limit(300);
+    if (fSt.value) qq = qq.eq('status', fSt.value);
+    const term = q.value.replace(/[,()%*\\"]/g, ' ').trim();
+    if (term) { const x = '%' + term + '%'; qq = qq.or('receipt_code.ilike.' + x + ',order_code.ilike.' + x + ',customer_name.ilike.' + x); }
+    const r = await qq;
+    tbody.textContent = '';
+    if (r.error) { tbody.appendChild(BZ.emptyRow(7, BZ.errText(r.error))); return; }
+    if (!r.data.length) { tbody.appendChild(BZ.emptyRow(7, 'Chưa có chứng từ. Chứng từ được tạo tự động khi duyệt thanh toán ở trang Thanh toán.')); return; }
+    r.data.forEach(function (x) {
+      tbody.appendChild(h('tr', { class: 'clickable', tabindex: '0', onclick: function () { open(x); }, onkeydown: function (e) { if (e.key === 'Enter') open(x); } },
+        h('td', null, h('b', null, x.receipt_code)), h('td', null, fmt.date(x.receipt_date)), h('td', null, x.customer_name || '—', x.customer_tax_code ? h('small', null, 'MST ' + x.customer_tax_code) : null),
+        h('td', null, [x.product_name, x.plan_name].filter(Boolean).join(' – ') || '—'), h('td', null, x.order_code || '—'),
+        h('td', { class: 'num' }, fmt.money(x.total_amount, x.currency)), h('td', null, h('span', { class: 'chip ' + ST[x.status][1] }, ST[x.status][0]))));
+    });
+  }
+
+  function open(x) {
+    const body = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px' } },
+      FIN.kv([['Số chứng từ', x.receipt_code], ['Ngày', fmt.date(x.receipt_date)], ['Trạng thái', h('span', { class: 'chip ' + ST[x.status][1] }, ST[x.status][0])],
+        ['Khách hàng', x.customer_name], ['MST', x.customer_tax_code], ['Email', x.customer_email], ['Dịch vụ', [x.product_name, x.plan_name].filter(Boolean).join(' – ')],
+        ['Mã đơn', x.order_id ? h('a', { href: '/admin/orders.html#' + x.order_id }, x.order_code || 'Xem đơn') : x.order_code],
+        ['Tiền hàng', fmt.money(x.subtotal_amount)], ['Thuế (' + (x.tax_rate || 0) + '%)', fmt.money(x.tax_amount)], ['Tổng cộng', h('b', null, fmt.money(x.total_amount))],
+        ['Nội dung CK', x.payment_reference], x.cancel_reason ? ['Lý do hủy', x.cancel_reason] : null]));
+    const A = [{ label: 'Đóng', kind: 'ghost' }];
+    if (x.status !== 'draft') A.push({ label: '⬇ Tải Excel', kind: 'ghost', onClick: function () { return RECEIPT.excel(x); } }, { label: 'In', kind: 'ghost', onClick: function () { return RECEIPT.print(x); } });
+    if (ctx.can.finance && x.status === 'draft') A.push({ label: 'Phát hành', kind: 'primary', onClick: async function (close) { await BZ.rpc('receipt_set_status', { _receipt: x.id, _status: 'issued', _reason: null }); close(); BZ.toast('Đã phát hành chứng từ.', 'ok'); load(); } });
+    if (ctx.can.finance && x.status === 'issued') A.splice(1, 0, { label: 'Hủy chứng từ', kind: 'danger', onClick: async function (close) {
+      const why = await FIN.askReason('Hủy chứng từ ' + x.receipt_code, 'Lý do hủy *', 'Hủy chứng từ', true);
+      if (!why) return;
+      await BZ.rpc('receipt_set_status', { _receipt: x.id, _status: 'cancelled', _reason: why }); close(); BZ.toast('Đã hủy chứng từ.', 'ok'); load();
+    } });
+    BZ.modal({ title: 'Chứng từ ' + x.receipt_code, wide: true, body: body, actions: A });
+  }
+  await load();
+});
+</script>
+</body>
+</html>

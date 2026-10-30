@@ -23,6 +23,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="/admin/config.js"></script>
 <script src="/admin/app.js"></script>
+<script src="/admin/finance.js"></script>
 <script>
 BZ.boot(async function (ctx) {
   const h = BZ.h, fmt = BZ.fmt, sb = ctx.sb, main = ctx.main;
@@ -33,6 +34,67 @@ BZ.boot(async function (ctx) {
   const soonIso = function () { return new Date(Date.now() + SOON_DAYS * DAY).toISOString(); };
 
   main.appendChild(BZ.pageHead('Khách hàng & gói', 'Doanh nghiệp đang dùng dịch vụ, hạn sử dụng và gia hạn gói.'));
+
+  /* ---------- Doanh nghiệp mới đăng ký trên cổng khách hàng, chờ xác minh ---------- */
+  const orgBox = h('section', { class: 'card', hidden: true });
+  main.appendChild(orgBox);
+  async function loadPendingOrgs() {
+    const r = await sb.from('organizations').select('*').eq('status', 'pending_verification').order('created_at');
+    orgBox.textContent = '';
+    if (r.error || !r.data.length) { orgBox.hidden = true; return; }
+    orgBox.hidden = false;
+    orgBox.append(h('div', { class: 'card-h' }, h('h2', null, 'Doanh nghiệp chờ xác minh (' + r.data.length + ')')),
+      h('p', { class: 'muted', style: { fontSize: '13px', marginBottom: '10px' } }, 'Khách tự đăng ký tại mhtbiz.com/tai-khoan. Kiểm tra tên, MST (tra cứu masothue / cổng thuế) rồi xác minh để khách đặt mua được.'),
+      h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+        h('thead', null, h('tr', null, ['Doanh nghiệp', 'MST', 'Liên hệ', 'Đăng ký lúc', ''].map(function (x) { return h('th', null, x); }))),
+        h('tbody', null, r.data.map(function (o) {
+          return h('tr', null, h('td', null, h('b', null, o.name), o.address ? h('small', null, o.address) : null), h('td', null, o.tax_code || '—'),
+            h('td', null, [o.representative, o.phone, o.email].filter(Boolean).join(' · ') || '—'), h('td', null, fmt.dateTime(o.created_at)),
+            h('td', null, h('div', { class: 'row-actions' },
+              h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: async function () {
+                if (!(await BZ.confirm('Xác minh doanh nghiệp', 'Xác minh "' + o.name + '"? Khách sẽ đặt mua và thanh toán được ngay.', 'Xác minh'))) return;
+                try { await BZ.rpc('org_set_status', { _org: o.id, _status: 'active', _reason: null }); BZ.toast('Đã xác minh doanh nghiệp.', 'ok'); loadPendingOrgs(); } catch (e) { BZ.toast(BZ.errText(e), 'err'); }
+              } }, 'Xác minh'),
+              h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: async function () {
+                const why = await FIN.askReason('Từ chối ' + o.name, 'Lý do *', 'Từ chối', true);
+                if (!why) return;
+                try { await BZ.rpc('org_set_status', { _org: o.id, _status: 'suspended', _reason: why }); BZ.toast('Đã từ chối (tạm ngưng doanh nghiệp).', 'ok'); loadPendingOrgs(); } catch (e) { BZ.toast(BZ.errText(e), 'err'); }
+              } }, 'Từ chối'))));
+        })))));
+  }
+  loadPendingOrgs();
+
+  /* ---------- Mô-đun khách đăng ký mua thêm, chờ duyệt ---------- */
+  const modBox = h('section', { class: 'card', hidden: true });
+  main.appendChild(modBox);
+  async function loadModReq() {
+    const r = await sb.from('subscription_modules').select('id,organization_id,module_name,module_code,price_amount,billing_cycle,out_of_industry,created_at,note').eq('status', 'pending_approval').order('created_at');
+    modBox.textContent = '';
+    if (r.error || !r.data.length) { modBox.hidden = true; return; }
+    const ids = Array.from(new Set(r.data.map(function (x) { return x.organization_id; })));
+    const og = await sb.from('organizations').select('id,name').in('id', ids);
+    const on = {}; (og.data || []).forEach(function (o) { on[o.id] = o.name; });
+    modBox.hidden = false;
+    modBox.append(h('div', { class: 'card-h' }, h('h2', null, 'Mô-đun chờ duyệt (' + r.data.length + ')')),
+      h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+        h('thead', null, h('tr', null, ['Doanh nghiệp', 'Mô-đun', 'Giá', 'Gửi lúc', ''].map(function (x) { return h('th', null, x); }))),
+        h('tbody', null, r.data.map(function (m) {
+          return h('tr', null, h('td', null, on[m.organization_id] || '—'),
+            h('td', null, h('b', null, m.module_name), m.out_of_industry ? h('small', null, 'Ngoài chuyên ngành của khách') : null, m.note ? h('small', null, m.note) : null),
+            h('td', { class: 'num' }, fmt.money(m.price_amount), h('small', null, fmt.cycle(m.billing_cycle))), h('td', null, fmt.dateTime(m.created_at)),
+            h('td', null, ctx.can.admin ? h('div', { class: 'row-actions' },
+              h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: async function () {
+                if (!(await BZ.confirm('Kích hoạt mô-đun', 'Kích hoạt "' + m.module_name + '" cho ' + (on[m.organization_id] || 'doanh nghiệp') + '? Khách sẽ được báo ngay.', 'Kích hoạt'))) return;
+                try { await BZ.rpc('subscription_module_review', { _id: m.id, _approve: true, _reason: null }); BZ.toast('Đã kích hoạt mô-đun.', 'ok'); loadModReq(); } catch (e) { BZ.toast(BZ.errText(e), 'err'); }
+              } }, 'Duyệt'),
+              h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: async function () {
+                const why = await FIN.askReason('Từ chối mô-đun ' + m.module_name, 'Lý do (khách sẽ thấy) *', 'Từ chối', true);
+                if (!why) return;
+                try { await BZ.rpc('subscription_module_review', { _id: m.id, _approve: false, _reason: why }); BZ.toast('Đã từ chối. Nếu khách đã trả tiền, kế toán hoàn tiền thủ công.', 'ok'); loadModReq(); } catch (e) { BZ.toast(BZ.errText(e), 'err'); }
+              } }, 'Từ chối')) : h('small', { class: 'muted' }, 'Quản trị duyệt')));
+        })))));
+  }
+  loadModReq();
 
   /* ---------- KPI ---------- */
   function kpi(iconKey, label, id) {

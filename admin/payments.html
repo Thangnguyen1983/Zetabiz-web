@@ -161,6 +161,17 @@ BZ.boot(async function (ctx) {
         else if (sib.count) reapproveBlock = 'Khách đã gửi một khoản thanh toán khác cho đơn này. Hãy đối soát khoản mới thay vì duyệt lại khoản bị từ chối.';
       }
     }
+    /* Ảnh / biên lai chuyển khoản khách tải lên: tạo link xem có hạn 10 phút */
+    const proofs = await sb.from('payment_proofs').select('id,bucket,path,file_name,mime_type,size_bytes,created_at').eq('payment_id', p.id).order('created_at');
+    const proofBox = h('div', { class: 'row-actions', style: { flexWrap: 'wrap', gap: '10px' } });
+    for (const f of (proofs.data || [])) {
+      const u = await sb.storage.from(f.bucket || 'payment-proofs').createSignedUrl(f.path, 600);
+      const url = u.data && u.data.signedUrl;
+      if (!url) { proofBox.appendChild(h('span', { class: 'muted' }, f.file_name + ' (không mở được)')); continue; }
+      proofBox.appendChild(/^image\//.test(f.mime_type || '')
+        ? h('a', { href: url, target: '_blank', rel: 'noopener', title: f.file_name }, h('img', { src: url, alt: f.file_name, style: { width: '160px', height: '160px', objectFit: 'cover', borderRadius: '10px', border: '1px solid var(--line)' } }))
+        : h('a', { class: 'btn btn-ghost btn-sm', href: url, target: '_blank', rel: 'noopener' }, '📄 ' + f.file_name));
+    }
     loading.close();
 
     const mismatch = o && o.total_amount !== null && Number(o.total_amount) !== Number(p.amount);
@@ -189,6 +200,7 @@ BZ.boot(async function (ctx) {
           ['Liên hệ', [o.contact_name, o.contact_phone, o.contact_email].filter(Boolean).join(' · ')],
           org ? ['Doanh nghiệp', org.name + (org.tax_code ? ' (MST ' + org.tax_code + ')' : '')] : null
         ]) : h('p', { class: 'muted' }, 'Không tải được thông tin đơn hàng.'))),
+      (proofs.data || []).length ? h('div', null, h('h3', { class: 'sec-t' }, 'Ảnh / biên lai chuyển khoản của khách'), proofBox) : (p.status === 'submitted' ? h('p', { class: 'muted' }, 'Khách chưa tải ảnh chuyển khoản.') : null),
       p.status === 'rejected' && p.rejected_reason ? h('div', { class: 'msg err' }, h('b', null, 'Lý do từ chối: '), p.rejected_reason) : null,
       ctx.can.finance && reapproveBlock ? h('div', { class: 'msg info' }, reapproveBlock) : null,
       mismatch ? h('div', { class: 'msg err', role: 'alert' }, 'Lưu ý: số tiền (' + fmt.money(p.amount, p.currency) + ') khác tổng đơn (' + fmt.money(o.total_amount, o.currency) + ').') : null,

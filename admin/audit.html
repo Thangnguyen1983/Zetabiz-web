@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script>if(/^(biztech-web|zetabiz)(-mhtbiz)?\.vercel\.app$/.test(location.hostname))location.replace('https://mhtbiz.com'+location.pathname+location.search+location.hash);</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Nhật ký thao tác – Quản trị Zetabiz</title>
+<link rel="icon" type="image/png" href="/assets/zetabiz-mark-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>.det{font:12px/1.5 var(--mono);color:var(--text-2);white-space:pre-wrap;word-break:break-word;max-width:420px}</style>
+</head>
+<body data-page="audit">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, sb = ctx.sb, main = ctx.main, fmt = BZ.fmt;
+  main.appendChild(BZ.pageHead('Nhật ký thao tác', 'Ai đã làm gì, lúc nào: duyệt thanh toán, sửa phiếu, đổi quyền, hủy chứng từ… Nhật ký không sửa, không xóa được.'));
+  if (!ctx.can.admin) { main.appendChild(h('div', { class: 'msg info' }, 'Chỉ Quản trị xem được nhật ký thao tác.')); return; }
+
+  const ENT = { orders: 'Đơn hàng', payments: 'Thanh toán', payment_receipts: 'Chứng từ', subscriptions: 'Gói dịch vụ', subscription_modules: 'Mô-đun',
+    finance_transactions: 'Phiếu thu chi', finance_debts: 'Công nợ', finance_debt_allocations: 'Trừ nợ', finance_attachments: 'Chứng từ đính kèm',
+    leads: 'Khách tiềm năng', user_roles: 'Phân quyền', profiles: 'Tài khoản', staff_invites: 'Mời nhân viên', organizations: 'Doanh nghiệp', settings: 'Cài đặt' };
+  const PAGE = 50;
+  const st = { entity: '', from: '', to: '', page: 0 };
+  const fEnt = h('select', { 'aria-label': 'Đối tượng' }, h('option', { value: '' }, 'Mọi đối tượng'), Object.keys(ENT).map(function (k) { return h('option', { value: k }, ENT[k]); }));
+  const fFrom = h('input', { type: 'date', 'aria-label': 'Từ ngày' }), fTo = h('input', { type: 'date', 'aria-label': 'Đến ngày' });
+  [[fEnt, 'entity'], [fFrom, 'from'], [fTo, 'to']].forEach(function (p) { p[0].addEventListener('change', function () { st[p[1]] = p[0].value; st.page = 0; load(); }); });
+  const tbody = h('tbody'), pager = h('div', { class: 'pager' });
+  main.appendChild(h('section', { class: 'card' }, h('div', { class: 'toolbar', style: { marginBottom: '12px' } }, fEnt, h('span', { class: 'muted' }, 'từ'), fFrom, h('span', { class: 'muted' }, 'đến'), fTo),
+    h('div', { class: 'table-wrap' }, h('table', { class: 't' }, h('thead', null, h('tr', null, ['Thời gian', 'Người làm', 'Thao tác', 'Đối tượng', 'Chi tiết'].map(function (x) { return h('th', null, x); }))), tbody)), pager));
+
+  const names = {};
+  async function load() {
+    tbody.textContent = ''; tbody.appendChild(BZ.emptyRow(5, 'Đang tải…')); pager.textContent = '';
+    const from = st.page * PAGE;
+    let q = sb.from('audit_logs').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(from, from + PAGE - 1);
+    if (st.entity) q = q.eq('entity', st.entity);
+    if (st.from) q = q.gte('created_at', st.from);
+    if (st.to) q = q.lte('created_at', st.to + 'T23:59:59');
+    const r = await q;
+    tbody.textContent = '';
+    if (r.error) { tbody.appendChild(BZ.emptyRow(5, BZ.errText(r.error))); return; }
+    if (!r.data.length) { tbody.appendChild(BZ.emptyRow(5, 'Không có thao tác nào.')); return; }
+    const ids = Array.from(new Set(r.data.map(function (x) { return x.actor_id; }).filter(function (i) { return i && !names[i]; })));
+    if (ids.length) { const p = await sb.from('profiles').select('id,full_name,email').in('id', ids); (p.data || []).forEach(function (x) { names[x.id] = x.full_name || x.email; }); }
+    r.data.forEach(function (x) {
+      const d = x.detail ? JSON.stringify(x.detail, null, 1).replace(/[{}"]/g, '').replace(/\n\s*/g, '\n').trim() : '';
+      tbody.appendChild(h('tr', null, h('td', null, fmt.dateTime(x.created_at)), h('td', null, names[x.actor_id] || (x.actor_id ? 'Tài khoản khác' : 'Hệ thống')),
+        h('td', null, x.action.replace(/_/g, ' ')), h('td', null, ENT[x.entity] || x.entity, x.entity_id ? h('small', { class: 'mono' }, String(x.entity_id).slice(0, 8)) : null),
+        h('td', null, h('div', { class: 'det' }, d.slice(0, 400)))));
+    });
+    const total = r.count || 0, pages = Math.max(1, Math.ceil(total / PAGE));
+    pager.append(h('span', null, 'Hiển thị ' + (from + 1) + '–' + (from + r.data.length) + ' / ' + fmt.num(total)),
+      h('div', { class: 'row-actions' },
+        h('button', { type: 'button', class: 'btn btn-ghost btn-sm', disabled: st.page === 0, onclick: function () { st.page--; load(); } }, '‹ Trước'),
+        h('button', { type: 'button', class: 'btn btn-ghost btn-sm', disabled: st.page >= pages - 1, onclick: function () { st.page++; load(); } }, 'Sau ›')));
+  }
+  await load();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script>if(/^(biztech-web|zetabiz)(-mhtbiz)?\.vercel\.app$/.test(location.hostname))location.replace('https://mhtbiz.com'+location.pathname+location.search+location.hash);</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Sản phẩm & bảng giá – Quản trị Zetabiz</title>
+<link rel="icon" type="image/png" href="/assets/zetabiz-mark-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>.feat{margin:0;padding-left:18px;font-size:13px;color:var(--text-2)}.feat li{margin:2px 0}</style>
+</head>
+<body data-page="catalog">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script src="/admin/finance.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, sb = ctx.sb, main = ctx.main, vnd = FIN.vnd;
+  /* Sửa sản phẩm, gói, mô-đun: Quản trị và Biên tập (can_manage_content). Giá mô-đun: chỉ Quản trị. */
+  const canEdit = ctx.can.admin || ctx.roles.indexOf('editor') >= 0;
+  const canPrice = ctx.can.admin;
+  main.appendChild(BZ.pageHead('Sản phẩm & bảng giá', 'Gói và mô-đun dùng khi lập báo giá, bán hàng và kích hoạt cho khách. Giá chưa gồm VAT trừ khi ghi thuế suất.'));
+  if (!canEdit) main.appendChild(h('div', { class: 'msg info' }, 'Bạn đang ở chế độ xem. Quản trị hoặc Biên tập mới sửa được danh mục.'));
+
+  const ST = { draft: ['Nháp – chưa bán', 'info'], published: ['Đang bán', 'ok'], archived: ['Ngừng bán', 'bad'] };
+  const CYCLE = { monthly: 'Theo tháng', yearly: 'Theo năm', one_time: 'Một lần', custom: 'Theo thỏa thuận' };
+  const MODE = { consultative: 'Tư vấn rồi báo giá', direct_purchase: 'Mua trực tiếp', coming_soon: 'Sắp ra mắt' };
+  let products = [], current = null;
+
+  const prodSel = h('select', { 'aria-label': 'Sản phẩm' });
+  const box = h('div');
+  main.appendChild(h('section', { class: 'card' },
+    h('div', { class: 'toolbar', style: { marginBottom: '14px' } }, h('label', { class: 'check' }, 'Sản phẩm ', prodSel), h('span', { style: { flex: '1' } }),
+      canEdit ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { productForm(current); } }, 'Sửa thông tin sản phẩm') : null),
+    box));
+  prodSel.addEventListener('change', function () { current = products.find(function (p) { return p.id === prodSel.value; }); history.replaceState(null, '', '#' + current.code); draw(); });
+
+  async function loadProducts(keepCode) {
+    const r = await sb.from('products').select('id,code,name,slug,status,sales_mode,app_url,tagline,expiry_behavior,sort_order').order('status').order('sort_order');
+    if (r.error) throw r.error;
+    const order = { published: 0, draft: 1, archived: 2 };
+    products = r.data.sort(function (a, b) { return order[a.status] - order[b.status] || (a.sort_order || 0) - (b.sort_order || 0); });
+    prodSel.textContent = '';
+    products.forEach(function (p) { prodSel.appendChild(h('option', { value: p.id }, p.name + ' — ' + ST[p.status][0])); });
+    const want = keepCode || decodeURIComponent(location.hash.slice(1)) || 'ZTB-SKYAGENT';
+    current = products.find(function (p) { return p.code === want; }) || products[0];
+    prodSel.value = current.id;
+    draw();
+  }
+
+  async function draw() {
+    box.textContent = ''; box.appendChild(h('p', { class: 'muted' }, 'Đang tải…'));
+    const p = current;
+    const r = await Promise.all([
+      sb.from('product_plans').select('*').eq('product_id', p.id).order('sort_order'),
+      sb.from('modules').select('*').eq('product_id', p.id).order('sort_order'),
+      sb.from('module_prices').select('*').eq('is_active', true)
+    ]);
+    r.forEach(function (x) { if (x.error) throw x.error; });
+    const plans = r[0].data, mods = r[1].data, prices = r[2].data;
+    box.textContent = '';
+    box.append(
+      h('div', { class: 'row-actions', style: { alignItems: 'center', gap: '10px', marginBottom: '16px' } },
+        h('span', { class: 'chip ' + ST[p.status][1] }, ST[p.status][0]), h('span', { class: 'muted' }, 'Mã ' + p.code + ' · ' + (MODE[p.sales_mode] || 'Chưa đặt cách bán') + (p.app_url ? ' · Ứng dụng: ' + p.app_url : ''))),
+      h('div', { class: 'card-h' }, h('h2', null, 'Gói dịch vụ'), canEdit ? h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: function () { planForm(null); } }, '+ Thêm gói') : null),
+      h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+        h('thead', null, h('tr', null, ['Gói', 'Chu kỳ', 'Giá', 'Thuế', 'Giới hạn', 'Gồm', 'Trạng thái', ''].map(function (x, i) { return h('th', { style: i === 2 ? { textAlign: 'right' } : null }, x); }))),
+        h('tbody', null, plans.length ? plans.map(function (pl) {
+          return h('tr', { style: pl.is_active ? null : { opacity: '.5' } },
+            h('td', null, h('b', null, pl.name), h('small', null, pl.plan_code)), h('td', null, CYCLE[pl.billing_cycle] || pl.billing_cycle),
+            h('td', { class: 'num' }, pl.price_amount === null ? (pl.price_display || 'Báo giá riêng') : vnd(pl.sale_price_amount || pl.price_amount), pl.sale_price_amount ? h('small', { style: { textDecoration: 'line-through' } }, vnd(pl.price_amount)) : null,
+              pl.setup_fee_amount ? h('small', null, '+ phí khởi tạo ' + vnd(pl.setup_fee_amount)) : null),
+            h('td', null, (pl.tax_rate || 0) + '%'), h('td', null, pl.max_users ? pl.max_users + ' nhân viên' : 'Không giới hạn'),
+            h('td', { style: { maxWidth: '300px' } }, h('ul', { class: 'feat' }, (pl.features || []).slice(0, 4).map(function (f) { return h('li', null, String(f)); }))),
+            h('td', null, pl.is_active ? h('span', { class: 'chip ok' }, 'Đang bán') : h('span', { class: 'chip bad' }, 'Ngừng')),
+            h('td', null, canEdit ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { planForm(pl); } }, 'Sửa') : null));
+        }) : BZ.emptyRow(8, 'Chưa có gói nào. Thêm gói để lập báo giá cho sản phẩm này.')))),
+      h('div', { class: 'card-h', style: { marginTop: '26px' } }, h('h2', null, 'Mô-đun mua thêm'), canEdit ? h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: function () { moduleForm(null); } }, '+ Thêm mô-đun') : null),
+      h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+        h('thead', null, h('tr', null, ['Mô-đun', 'Mô tả', 'Giá mặc định', 'Kích hoạt', 'Trạng thái', ''].map(function (x, i) { return h('th', { style: i === 2 ? { textAlign: 'right' } : null }, x); }))),
+        h('tbody', null, mods.length ? mods.map(function (m) {
+          const pr = prices.find(function (x) { return x.module_id === m.id && !x.industry_id && x.billing_cycle === m.billing_cycle; });
+          return h('tr', { style: m.status === 'archived' ? { opacity: '.5' } : null },
+            h('td', null, h('b', null, m.name), h('small', null, m.code)), h('td', { style: { maxWidth: '340px' } }, m.description || '—'),
+            h('td', { class: 'num' }, pr ? vnd(pr.amount) : '—', h('small', null, CYCLE[m.billing_cycle] || '')),
+            h('td', null, m.activation_mode === 'auto' ? 'Tự động' : 'Cần duyệt'),
+            h('td', null, h('span', { class: 'chip ' + ST[m.status][1] }, ST[m.status][0])),
+            h('td', null, canEdit ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { moduleForm(m, pr); } }, 'Sửa') : null));
+        }) : BZ.emptyRow(6, 'Sản phẩm này chưa có mô-đun mua thêm.')))));
+  }
+
+  function sel(map, v) { return FIN.selectEl(Object.keys(map).map(function (k) { return { value: k, label: Array.isArray(map[k]) ? map[k][0] : map[k] }; }), v); }
+  function num(v) { return h('input', { type: 'number', min: '0', value: v === null || v === undefined ? '' : v }); }
+
+  function productForm(p) {
+    const name = h('input', { type: 'text', value: p.name, maxlength: '150' });
+    const tagline = h('input', { type: 'text', value: p.tagline || '', maxlength: '200' });
+    const status = sel(ST, p.status), mode = sel(MODE, p.sales_mode || 'consultative');
+    const app = h('input', { type: 'url', value: p.app_url || '', placeholder: 'https://app...' });
+    BZ.modal({ title: 'Sản phẩm ' + p.code, body: h('div', { class: 'form-grid' },
+      h('div', { class: 'span2' }, BZ.field('Tên sản phẩm', name)), h('div', { class: 'span2' }, BZ.field('Mô tả ngắn', tagline)),
+      BZ.field('Trạng thái', status, 'Đang bán: hiện trong báo giá và cổng khách hàng'), BZ.field('Cách bán', mode),
+      h('div', { class: 'span2' }, BZ.field('Địa chỉ ứng dụng', app, 'Khách bấm "Vào ứng dụng" từ cổng khách hàng sẽ tới đây'))),
+      actions: [{ label: 'Hủy', kind: 'ghost' }, { label: 'Lưu', kind: 'primary', onClick: async function (close) {
+        const r = await sb.from('products').update({ name: name.value.trim(), tagline: tagline.value.trim() || null, status: status.value, sales_mode: mode.value, app_url: app.value.trim() || null }).eq('id', p.id);
+        if (r.error) throw r.error; close(); BZ.toast('Đã lưu sản phẩm.', 'ok'); loadProducts(p.code);
+      } }] });
+  }
+
+  function planForm(pl) {
+    pl = pl || { is_active: true, billing_cycle: 'monthly', tax_rate: 0, features: [] };
+    const name = h('input', { type: 'text', value: pl.name || '', maxlength: '120', placeholder: 'VD: Đại lý vé' });
+    const code = h('input', { type: 'text', value: pl.plan_code || '', maxlength: '60', placeholder: 'vd: dai-ly-ve-thang', disabled: pl.id ? true : null });
+    const cycle = sel(CYCLE, pl.billing_cycle);
+    const price = FIN.moneyInput(pl.price_amount || 0), sale = FIN.moneyInput(pl.sale_price_amount || 0), setup = FIN.moneyInput(pl.setup_fee_amount || 0);
+    const display = h('input', { type: 'text', value: pl.price_display || '', maxlength: '80', placeholder: 'Để trống: tự ghi theo giá' });
+    const tax = num(pl.tax_rate || 0), users = num(pl.max_users);
+    const feats = h('textarea', { rows: '5', placeholder: 'Mỗi dòng một ý' }, (pl.features || []).join('\n'));
+    const note = h('input', { type: 'text', value: pl.note || '', maxlength: '300' });
+    const active = h('input', { type: 'checkbox', checked: pl.is_active });
+    BZ.modal({ title: pl.id ? 'Sửa gói ' + pl.name : 'Thêm gói cho ' + current.name, wide: true, body: h('div', { class: 'form-grid' },
+      BZ.field('Tên gói *', name), BZ.field('Mã gói *', code, 'Chữ thường không dấu, dấu gạch. Không đổi được sau khi tạo'),
+      BZ.field('Chu kỳ', cycle), BZ.field('Giá (đ) — để 0 nếu báo giá riêng', price),
+      BZ.field('Giá khuyến mãi (đ)', sale, 'Để 0 nếu không giảm'), BZ.field('Phí khởi tạo (đ)', setup),
+      BZ.field('Thuế suất VAT (%)', tax, 'Giá đang nhập là chưa thuế'), BZ.field('Số nhân viên tối đa', users, 'Để trống: không giới hạn'),
+      h('div', { class: 'span2' }, BZ.field('Chữ hiển thị giá', display)),
+      h('div', { class: 'span2' }, BZ.field('Gói gồm những gì', feats)), h('div', { class: 'span2' }, BZ.field('Ghi chú nội bộ', note)),
+      h('label', { class: 'span2 check' }, active, ' Đang bán (bỏ chọn để ngừng bán gói này; khách đang dùng không bị ảnh hưởng)')),
+      actions: [{ label: 'Hủy', kind: 'ghost' }, { label: 'Lưu gói', kind: 'primary', onClick: async function (close, msg) {
+        const c = code.value.trim().toLowerCase();
+        if (name.value.trim().length < 2 || !/^[a-z0-9][a-z0-9-]{1,59}$/.test(c)) { msg.textContent = 'Nhập tên gói và mã gói hợp lệ (chữ thường không dấu, số, dấu gạch).'; msg.hidden = false; return; }
+        if (sale.amount() && price.amount() && sale.amount() > price.amount()) { msg.textContent = 'Giá khuyến mãi không được cao hơn giá gốc.'; msg.hidden = false; return; }
+        const amt = price.amount() || null;
+        const row = { name: name.value.trim(), billing_cycle: cycle.value, price_amount: amt, sale_price_amount: sale.amount() || null, setup_fee_amount: setup.amount() || null,
+          tax_rate: Math.min(100, Math.max(0, Number(tax.value) || 0)), max_users: Number(users.value) > 0 ? Number(users.value) : null,
+          price_display: display.value.trim() || (amt ? FIN.vnd(sale.amount() || amt) + ({ monthly: '/tháng', yearly: '/năm' }[cycle.value] || '') : 'Báo giá riêng'),
+          features: feats.value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean), note: note.value.trim() || null, is_active: active.checked };
+        const r = pl.id ? await sb.from('product_plans').update(row).eq('id', pl.id)
+          : await sb.from('product_plans').insert(Object.assign(row, { product_id: current.id, plan_code: c, sort_order: 100 }));
+        if (r.error) throw r.error; close(); BZ.toast('Đã lưu gói.', 'ok'); draw();
+      } }] });
+  }
+
+  function moduleForm(m, pr) {
+    m = m || { status: 'draft', billing_cycle: 'monthly', scope: 'universal', kind: 'external', activation_mode: 'approval' };
+    const name = h('input', { type: 'text', value: m.name || '', maxlength: '120' });
+    const code = h('input', { type: 'text', value: m.code || '', maxlength: '60', placeholder: 'vd: sky-bao-cao', disabled: m.id ? true : null });
+    const desc = h('textarea', { rows: '3', maxlength: '500' }, m.description || '');
+    const price = FIN.moneyInput(pr ? pr.amount : (m.price_amount || 0)); price.disabled = !canPrice;
+    const cycle = sel({ monthly: 'Theo tháng', yearly: 'Theo năm', one_time: 'Một lần' }, m.billing_cycle);
+    const act = sel({ approval: 'Cần nhân viên duyệt', auto: 'Tự động sau khi thanh toán' }, m.activation_mode);
+    const status = sel(ST, m.status);
+    BZ.modal({ title: m.id ? 'Sửa mô-đun ' + m.name : 'Thêm mô-đun cho ' + current.name, wide: true, body: h('div', { class: 'form-grid' },
+      BZ.field('Tên mô-đun *', name), BZ.field('Mã *', code, 'Không đổi được sau khi tạo'),
+      h('div', { class: 'span2' }, BZ.field('Mô tả', desc)),
+      BZ.field('Giá mặc định (đ)', price, canPrice ? 'Chưa gồm VAT' : 'Chỉ Quản trị đổi được giá'), BZ.field('Chu kỳ', cycle),
+      BZ.field('Kích hoạt', act), BZ.field('Trạng thái', status, 'Muốn "Đang bán" phải có giá')),
+      actions: [{ label: 'Hủy', kind: 'ghost' }, { label: 'Lưu mô-đun', kind: 'primary', onClick: async function (close, msg) {
+        const c = code.value.trim().toLowerCase();
+        if (name.value.trim().length < 2 || !/^[a-z0-9][a-z0-9-]{1,59}$/.test(c)) { msg.textContent = 'Nhập tên và mã hợp lệ.'; msg.hidden = false; return; }
+        const base = { name: name.value.trim(), description: desc.value.trim() || null, billing_cycle: cycle.value, activation_mode: act.value, price_amount: price.amount() || null };
+        let id = m.id;
+        /* Lưu nháp trước, gắn giá, rồi mới đổi trạng thái — DB chặn phát hành mô-đun chưa có giá */
+        if (id) { const r = await sb.from('modules').update(base).eq('id', id); if (r.error) throw r.error; }
+        else {
+          const r = await sb.from('modules').insert(Object.assign(base, { product_id: current.id, code: c, status: 'draft', scope: 'universal', kind: 'external', sort_order: 100 })).select('id').single();
+          if (r.error) throw r.error; id = r.data.id;
+        }
+        if (canPrice && price.amount()) {
+          if (pr && pr.billing_cycle === cycle.value) { const r = await sb.from('module_prices').update({ amount: price.amount() }).eq('id', pr.id); if (r.error) throw r.error; }
+          else { const r = await sb.from('module_prices').insert({ module_id: id, industry_id: null, amount: price.amount(), currency: 'VND', billing_cycle: cycle.value, effective_from: FIN.today(), is_active: true }); if (r.error) throw r.error; }
+        }
+        if (status.value !== m.status || !m.id) { const r = await sb.from('modules').update({ status: status.value }).eq('id', id); if (r.error) throw r.error; }
+        close(); BZ.toast('Đã lưu mô-đun.', 'ok'); draw();
+      } }] });
+  }
+
+  await loadProducts();
+});
+</script>
+</body>
+</html>

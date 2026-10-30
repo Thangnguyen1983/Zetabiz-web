@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script>if(/^(biztech-web|zetabiz)(-mhtbiz)?\.vercel\.app$/.test(location.hostname))location.replace('https://mhtbiz.com'+location.pathname+location.search+location.hash);</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Hỗ trợ khách hàng – Quản trị Zetabiz</title>
+<link rel="icon" type="image/png" href="/assets/zetabiz-mark-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>
+.thread{display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow-y:auto;padding:4px}
+.bubble{max-width:82%;padding:10px 14px;border-radius:14px;font-size:14px;white-space:pre-wrap;word-break:break-word}
+.bubble small{display:block;font-size:11px;color:var(--muted);margin-top:4px}
+.bubble.cus{background:var(--bg);align-self:flex-start;border-bottom-left-radius:4px}
+.bubble.staff{background:var(--primary-soft);align-self:flex-end;border-bottom-right-radius:4px}
+</style>
+</head>
+<body data-page="support">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, sb = ctx.sb, main = ctx.main, fmt = BZ.fmt;
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const ST = { new: ['Mới', 'info'], in_progress: ['Đang xử lý', 'blue'], waiting_customer: ['Chờ khách phản hồi', 'warn'], resolved: ['Đã giải quyết', 'ok'], closed: ['Đã đóng', 'bad'] };
+  const PR = { low: ['Thấp', 'info'], normal: ['Bình thường', 'info'], high: ['Cao', 'warn'], urgent: ['Khẩn', 'bad'] };
+  const chip = function (map, v) { const m = map[v] || [v, 'info']; return h('span', { class: 'chip ' + m[1] }, m[0]); };
+  main.appendChild(BZ.pageHead('Hỗ trợ khách hàng', 'Yêu cầu khách gửi từ cổng khách hàng. Trả lời ngay tại đây, khách thấy trong tài khoản của họ.'));
+
+  const staff = await BZ.rpc('list_staff').catch(function () { return []; });
+  const staffName = {}; (staff || []).forEach(function (s) { staffName[s.id || s.user_id] = s.full_name || s.email; });
+
+  const TABS = [{ k: 'open', label: 'Đang mở', st: ['new', 'in_progress', 'waiting_customer'] }, { k: 'new', label: 'Mới', st: ['new'] }, { k: 'done', label: 'Đã giải quyết / đóng', st: ['resolved', 'closed'] }, { k: 'all', label: 'Tất cả' }];
+  let tab = 'open';
+  const btns = TABS.map(function (t) { return h('button', { type: 'button', role: 'tab', onclick: function () { tab = t.k; load(); } }, t.label); });
+  const tbody = h('tbody');
+  main.appendChild(h('section', { class: 'card' }, h('div', { class: 'tabs', role: 'tablist' }, btns),
+    h('div', { class: 'table-wrap', style: { marginTop: '12px' } }, h('table', { class: 't' },
+      h('thead', null, h('tr', null, ['Mã', 'Tiêu đề', 'Doanh nghiệp', 'Ưu tiên', 'Trạng thái', 'Phụ trách', 'Cập nhật'].map(function (x) { return h('th', null, x); }))), tbody))));
+
+  const orgCache = {};
+  async function orgNames(ids) {
+    const need = ids.filter(function (i) { return i && !orgCache[i]; });
+    if (need.length) { const r = await sb.from('organizations').select('id,name').in('id', need); (r.data || []).forEach(function (o) { orgCache[o.id] = o.name; }); }
+  }
+  async function load() {
+    btns.forEach(function (b, i) { b.setAttribute('aria-selected', TABS[i].k === tab ? 'true' : 'false'); });
+    tbody.textContent = ''; tbody.appendChild(BZ.emptyRow(7, 'Đang tải…'));
+    const t = TABS.find(function (x) { return x.k === tab; });
+    let q = sb.from('support_tickets').select('*').order('last_message_at', { ascending: false, nullsFirst: false }).limit(300);
+    if (t.st) q = q.in('status', t.st);
+    const r = await q;
+    tbody.textContent = '';
+    if (r.error) { tbody.appendChild(BZ.emptyRow(7, BZ.errText(r.error))); return; }
+    if (!r.data.length) { tbody.appendChild(BZ.emptyRow(7, tab === 'open' ? 'Không có yêu cầu nào đang mở.' : 'Không có yêu cầu.')); return; }
+    await orgNames(r.data.map(function (x) { return x.organization_id; }));
+    r.data.forEach(function (x) {
+      tbody.appendChild(h('tr', { class: 'clickable', tabindex: '0', onclick: function () { open(x.id); }, onkeydown: function (e) { if (e.key === 'Enter') open(x.id); } },
+        h('td', null, h('b', null, x.ticket_code)), h('td', null, x.subject, x.category ? h('small', null, x.category) : null),
+        h('td', null, orgCache[x.organization_id] || '—', x.contact_name ? h('small', null, x.contact_name) : null),
+        h('td', null, chip(PR, x.priority)), h('td', null, chip(ST, x.status)), h('td', null, staffName[x.assigned_to] || '—'),
+        h('td', null, fmt.dateTime(x.last_message_at || x.updated_at))));
+    });
+  }
+
+  async function open(id) {
+    history.replaceState(null, '', '#' + id);
+    const r = await sb.from('support_tickets').select('*').eq('id', id).maybeSingle();
+    if (r.error || !r.data) return BZ.toast(r.error ? BZ.errText(r.error) : 'Không tìm thấy yêu cầu.', 'err');
+    const t = r.data;
+    await orgNames([t.organization_id]);
+    const m = await sb.from('support_ticket_messages').select('*').eq('ticket_id', id).order('created_at');
+    const thread = h('div', { class: 'thread' }, (m.data || []).map(function (x) {
+      return h('div', { class: 'bubble ' + (x.is_staff ? 'staff' : 'cus') }, x.body, h('small', null, (x.author_name || (x.is_staff ? 'Zetabiz' : 'Khách')) + ' · ' + fmt.dateTime(x.created_at)));
+    }));
+    const reply = h('textarea', { rows: '4', maxlength: '5000', placeholder: 'Nhập câu trả lời cho khách…' });
+    const st = FIN_sel(ST, t.status), pr = FIN_sel(PR, t.priority);
+    const asg = h('select', null, h('option', { value: '' }, '— Chưa giao —'), (staff || []).map(function (s) { const sid = s.id || s.user_id; return h('option', { value: sid, selected: sid === t.assigned_to ? true : null }, s.full_name || s.email); }));
+    const body = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px' } },
+      h('div', { class: 'row-actions', style: { alignItems: 'center', gap: '10px' } }, chip(ST, t.status), chip(PR, t.priority),
+        h('span', { class: 'muted' }, (orgCache[t.organization_id] || '') + ' · ' + [t.contact_name, t.contact_phone, t.contact_email].filter(Boolean).join(' · '))),
+      thread,
+      BZ.field('Trả lời khách', reply),
+      h('div', { class: 'form-grid' }, BZ.field('Trạng thái', st), BZ.field('Mức ưu tiên', pr), h('div', { class: 'span2' }, BZ.field('Người phụ trách', asg))));
+    BZ.modal({ title: t.ticket_code + ' · ' + t.subject, wide: true, body: body, actions: [
+      { label: 'Đóng', kind: 'ghost' },
+      { label: 'Lưu thay đổi', kind: 'ghost', onClick: async function (close) { await save(false, close); } },
+      { label: 'Gửi trả lời', kind: 'primary', onClick: async function (close, msg) {
+        if (reply.value.trim().length < 2) { msg.textContent = 'Nhập nội dung trả lời.'; msg.hidden = false; return; }
+        await save(true, close);
+      } }] });
+    setTimeout(function () { thread.scrollTop = thread.scrollHeight; }, 50);
+
+    async function save(withReply, close) {
+      if (withReply) {
+        const ins = await sb.from('support_ticket_messages').insert({ ticket_id: t.id, author_id: ctx.user.id, author_name: ctx.name + ' (Zetabiz)', is_staff: true, body: reply.value.trim() });
+        if (ins.error) throw ins.error;
+      }
+      /* Trả lời khách mà phiếu còn "Mới" thì tự chuyển sang "Chờ khách phản hồi" */
+      let status = st.value;
+      if (withReply && status === t.status && (t.status === 'new' || t.status === 'in_progress')) status = 'waiting_customer';
+      const patch = { status: status, priority: pr.value, assigned_to: asg.value || null };
+      if (status === 'closed' || status === 'resolved') patch.closed_at = new Date().toISOString();
+      const u = await sb.from('support_tickets').update(patch).eq('id', t.id);
+      if (u.error) throw u.error;
+      close(); BZ.toast(withReply ? 'Đã gửi trả lời.' : 'Đã lưu.', 'ok'); load(); if (withReply) open(t.id);
+    }
+  }
+  function FIN_sel(map, v) { return h('select', null, Object.keys(map).map(function (k) { return h('option', { value: k, selected: k === v ? true : null }, map[k][0]); })); }
+
+  await load();
+  const k = decodeURIComponent(location.hash.slice(1)); if (UUID.test(k)) open(k);
+});
+</script>
+</body>
+</html>
