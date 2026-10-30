@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script>if(/^(biztech-web|zetabiz)(-mhtbiz)?\.vercel\.app$/.test(location.hostname))location.replace('https://mhtbiz.com'+location.pathname+location.search+location.hash);</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Tài khoản doanh nghiệp – Zetabiz</title>
+<link rel="icon" type="image/png" href="/assets/zetabiz-mark-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>
+.ph{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line)}
+.ph-in{max-width:1180px;margin:0 auto;padding:12px clamp(16px,3vw,28px);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.ph .logo{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--text);text-decoration:none}
+.ph .grow{flex:1}
+.ph select{height:40px;border-radius:10px;border:1px solid var(--line-2);padding:0 10px;font:inherit;max-width:280px}
+.wrap{max-width:1180px;margin:0 auto;padding:24px clamp(16px,3vw,28px) 60px;display:flex;flex-direction:column;gap:20px}
+.auth{max-width:440px;margin:6vh auto;background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px;display:flex;flex-direction:column;gap:16px}
+.auth h1{font-size:22px}
+.plans{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.plan{border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;gap:6px;background:#fff}
+.plan[aria-checked="true"]{border-color:var(--primary);background:var(--primary-soft)}
+.plan b{font-size:15px}.plan .p{font:600 18px var(--mono)}.plan ul{margin:4px 0 0;padding-left:18px;font-size:13px;color:var(--text-2)}
+.mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.mod{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px}
+.mod input{width:18px;height:18px;margin-top:2px}
+.sum{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border-radius:12px;background:var(--bg)}
+.sum b{font:600 20px var(--mono)}
+.qr{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.qr img{width:220px;height:auto;border:1px solid var(--line);border-radius:12px}
+.subcard{border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.subs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.thread{display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow-y:auto}
+.bubble{max-width:82%;padding:10px 14px;border-radius:14px;font-size:14px;white-space:pre-wrap;word-break:break-word}
+.bubble small{display:block;font-size:11px;color:var(--muted);margin-top:4px}
+.bubble.me{background:var(--primary-soft);align-self:flex-end}.bubble.staff{background:var(--bg);align-self:flex-start}
+</style>
+</head>
+<body>
+<div id="app"><div class="gate" role="status"><span class="spin" aria-hidden="true"></span>Đang tải…</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script src="/admin/xlsx-lite.js"></script>
+<script src="/admin/finance-export.js"></script>
+<script src="/admin/receipt-doc.js"></script>
+<script>
+(function () {
+  'use strict';
+  const sb = window.zbSb, h = BZ.h, fmt = BZ.fmt;
+  const app = document.getElementById('app');
+  const ROLE = { owner: 'Chủ doanh nghiệp', admin: 'Quản trị', billing: 'Phụ trách thanh toán', member: 'Thành viên', viewer: 'Chỉ xem' };
+  const SUB = { trial: ['Dùng thử', 'info'], active: ['Đang hoạt động', 'ok'], past_due: ['Quá hạn thanh toán', 'warn'], suspended: ['Tạm ngưng', 'warn'], cancelled: ['Đã hủy', 'bad'], expired: ['Hết hạn', 'bad'] };
+  const ORD = BZ.LABELS.order, PAY = BZ.LABELS.payment;
+  const TK = { new: ['Mới gửi', 'info'], in_progress: ['Đang xử lý', 'blue'], waiting_customer: ['Chờ anh/chị phản hồi', 'warn'], resolved: ['Đã giải quyết', 'ok'], closed: ['Đã đóng', 'bad'] };
+  const chip = function (m, v) { const x = m[v] || [v || '—', 'info']; return h('span', { class: 'chip ' + x[1] }, x[0]); };
+  const money = function (n) { return n === null || n === undefined ? 'Báo giá riêng' : fmt.money(n); };
+  let user = null, orgs = [], org = null, myRole = null, BANK = {};
+
+  function clear() { app.textContent = ''; }
+  function header() {
+    const sel = h('select', { 'aria-label': 'Doanh nghiệp' }, orgs.map(function (o) { return h('option', { value: o.organization_id }, o.name); }));
+    if (org) sel.value = org.id;
+    sel.addEventListener('change', function () { localStorage.setItem('zb-org', sel.value); start(); });
+    return h('header', { class: 'ph' }, h('div', { class: 'ph-in' },
+      h('a', { class: 'logo', href: '/' }, h('img', { class: 'logo-mark', src: '/assets/zetabiz-mark-64.png', alt: '', width: 28, height: 29 }), h('span', { class: 'logo-word' }, 'Zetabiz')),
+      h('span', { class: 'muted', style: { fontSize: '13px' } }, 'Tài khoản doanh nghiệp'), h('span', { class: 'grow' }),
+      orgs.length > 1 ? sel : null, h('span', { class: 'muted', style: { fontSize: '13px' } }, user.email),
+      h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: async function () { await sb.auth.signOut(); location.reload(); } }, 'Đăng xuất')));
+  }
+
+  /* ================= Đăng nhập / đăng ký ================= */
+  function authView(mode) {
+    clear();
+    const email = h('input', { type: 'email', autocomplete: 'email', required: true });
+    const pass = h('input', { type: 'password', autocomplete: mode === 'signup' ? 'new-password' : 'current-password' });
+    const name = h('input', { type: 'text', autocomplete: 'name' });
+    const msg = h('div', { class: 'msg err', role: 'alert', hidden: true });
+    const ok = h('div', { class: 'msg ok', hidden: true });
+    const T = { login: 'Đăng nhập', signup: 'Tạo tài khoản', forgot: 'Quên mật khẩu' };
+    const btn = h('button', { type: 'submit', class: 'btn btn-primary' }, mode === 'login' ? 'Đăng nhập' : mode === 'signup' ? 'Tạo tài khoản' : 'Gửi link đặt lại mật khẩu');
+    const form = h('form', { class: 'auth' },
+      h('a', { class: 'logo', href: '/', style: { display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'var(--text)', fontWeight: '700' } }, h('img', { class: 'logo-mark', src: '/assets/zetabiz-mark-64.png', alt: '' }), h('span', { class: 'logo-word' }, 'Zetabiz')),
+      h('h1', null, T[mode]), h('p', { class: 'muted', style: { fontSize: '14px' } }, mode === 'signup' ? 'Dành cho doanh nghiệp mua và quản lý dịch vụ Zetabiz. Nếu được đồng nghiệp mời, hãy đăng ký đúng email nhận lời mời.' : 'Quản lý gói dịch vụ, thanh toán, chứng từ và thành viên của doanh nghiệp.'),
+      msg, ok, mode === 'signup' ? BZ.field('Họ và tên', name) : null, BZ.field('Email', email), mode !== 'forgot' ? BZ.field('Mật khẩu', pass, mode === 'signup' ? 'Ít nhất 8 ký tự' : null) : null, btn,
+      h('div', { class: 'row-actions', style: { justifyContent: 'space-between', fontSize: '14px' } },
+        mode !== 'login' ? h('button', { type: 'button', class: 'link-btn', onclick: function () { authView('login'); } }, 'Đã có tài khoản? Đăng nhập') : h('button', { type: 'button', class: 'link-btn', onclick: function () { authView('signup'); } }, 'Chưa có tài khoản? Đăng ký'),
+        mode === 'login' ? h('button', { type: 'button', class: 'link-btn', onclick: function () { authView('forgot'); } }, 'Quên mật khẩu?') : null));
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault(); msg.hidden = true; ok.hidden = true; btn.disabled = true;
+      try {
+        const em = email.value.trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) throw new Error('Email không hợp lệ.');
+        if (mode === 'forgot') {
+          const r = await sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin + '/tai-khoan/' }); if (r.error) throw r.error;
+          ok.textContent = 'Đã gửi link đặt lại mật khẩu tới ' + em + '. Kiểm tra cả hộp thư rác.'; ok.hidden = false; return;
+        }
+        if (pass.value.length < (mode === 'signup' ? 8 : 1)) throw new Error(mode === 'signup' ? 'Mật khẩu ít nhất 8 ký tự.' : 'Nhập mật khẩu.');
+        if (mode === 'signup') {
+          const r = await sb.auth.signUp({ email: em, password: pass.value, options: { data: { full_name: name.value.trim() }, emailRedirectTo: location.origin + '/tai-khoan/' } });
+          if (r.error) throw r.error;
+          if (!r.data.session) { ok.textContent = 'Đã tạo tài khoản. Mở email ' + em + ' và bấm link xác nhận, rồi quay lại đây đăng nhập.'; ok.hidden = false; return; }
+        } else {
+          const r = await sb.auth.signInWithPassword({ email: em, password: pass.value });
+          if (r.error) throw new Error(/invalid/i.test(r.error.message) ? 'Email hoặc mật khẩu không đúng.' : /confirm/i.test(r.error.message) ? 'Email chưa được xác nhận. Mở email và bấm link xác nhận trước.' : r.error.message);
+        }
+        start();
+      } catch (err) { msg.textContent = BZ.errText(err); msg.hidden = false; } finally { btn.disabled = false; }
+    });
+    app.appendChild(form);
+  }
+  function resetView() {
+    clear();
+    const pass = h('input', { type: 'password', autocomplete: 'new-password' });
+    const msg = h('div', { class: 'msg err', hidden: true });
+    const form = h('form', { class: 'auth' }, h('h1', null, 'Đặt mật khẩu mới'), msg, BZ.field('Mật khẩu mới', pass, 'Ít nhất 8 ký tự'), h('button', { type: 'submit', class: 'btn btn-primary' }, 'Lưu mật khẩu'));
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      if (pass.value.length < 8) { msg.textContent = 'Mật khẩu ít nhất 8 ký tự.'; msg.hidden = false; return; }
+      const r = await sb.auth.updateUser({ password: pass.value });
+      if (r.error) { msg.textContent = BZ.errText(r.error); msg.hidden = false; return; }
+      BZ.toast('Đã đổi mật khẩu.', 'ok'); history.replaceState(null, '', location.pathname); start();
+    });
+    app.appendChild(form);
+  }
+
+  /* ================= Tạo doanh nghiệp lần đầu ================= */
+  function onboardView() {
+    clear(); app.appendChild(header());
+    const f = {}; ['name', 'tax_code', 'address', 'representative', 'phone', 'email'].forEach(function (k) { f[k] = h('input', { type: k === 'email' ? 'email' : 'text' }); });
+    f.email.value = user.email;
+    const body = h('div', { class: 'wrap' }, h('section', { class: 'card', style: { maxWidth: '720px' } },
+      h('h1', { style: { fontSize: '22px', marginBottom: '6px' } }, 'Thông tin doanh nghiệp'),
+      h('p', { class: 'muted', style: { marginBottom: '16px' } }, 'Khai một lần để mua dịch vụ và nhận chứng từ đúng tên công ty. Zetabiz xác minh trong giờ làm việc.'),
+      h('div', { class: 'form-grid' }, h('div', { class: 'span2' }, BZ.field('Tên doanh nghiệp *', f.name)), BZ.field('Mã số thuế', f.tax_code), BZ.field('Người đại diện', f.representative),
+        h('div', { class: 'span2' }, BZ.field('Địa chỉ', f.address)), BZ.field('Điện thoại', f.phone), BZ.field('Email nhận chứng từ', f.email)),
+      h('div', { style: { marginTop: '16px' } }, h('button', { type: 'button', class: 'btn btn-primary', onclick: async function (e) {
+        const b = e.currentTarget; b.disabled = true;
+        try {
+          const p = {}; Object.keys(f).forEach(function (k) { p[k] = f[k].value.trim(); }); p.full_name = (user.user_metadata && user.user_metadata.full_name) || '';
+          await BZ.rpc('register_organization', { payload: p }); BZ.toast('Đã gửi thông tin doanh nghiệp.', 'ok'); start();
+        } catch (err) { BZ.toast(BZ.errText(err), 'err'); } finally { b.disabled = false; }
+      } }, 'Gửi thông tin'))));
+    app.appendChild(body);
+  }
+
+  /* ================= Khung chính ================= */
+  let tab = 'home';
+  async function start() {
+    const s = (await sb.auth.getSession()).data.session;
+    if (!s) return authView('login');
+    user = s.user;
+    try { await BZ.rpc('accept_org_invites'); } catch (e) { /* không có lời mời thì bỏ qua */ }
+    try { orgs = await BZ.rpc('my_organizations') || []; } catch (e) { orgs = []; }
+    if (!orgs.length) return onboardView();
+    const want = localStorage.getItem('zb-org');
+    const pick = orgs.find(function (o) { return o.organization_id === want; }) || orgs[0];
+    const r = await sb.from('organizations').select('*').eq('id', pick.organization_id).maybeSingle();
+    org = r.data; myRole = pick.my_role;
+    const b = await sb.from('settings').select('value').eq('key', 'bank').maybeSingle(); BANK = (b.data && b.data.value) || {};
+    render();
+  }
+  const canManage = function () { return org && org.status === 'active' && (myRole === 'owner' || myRole === 'admin'); };
+  const canPay = canManage; /* backend: đặt mua & thanh toán cần vai trò Chủ DN hoặc Quản trị */
+
+  const TABS = [{ k: 'home', label: 'Tổng quan' }, { k: 'buy', label: 'Mua & gia hạn' }, { k: 'orders', label: 'Đơn hàng & thanh toán' }, { k: 'receipts', label: 'Chứng từ' },
+    { k: 'members', label: 'Thành viên' }, { k: 'support', label: 'Hỗ trợ' }, { k: 'profile', label: 'Hồ sơ công ty' }];
+  let pane;
+  function go(k) { tab = k; history.replaceState(null, '', '#' + k); render(); }
+  function render() {
+    clear(); app.appendChild(header());
+    const wrap = h('div', { class: 'wrap' });
+    wrap.appendChild(h('div', { class: 'top' }, h('div', { class: 'grow' }, h('h1', null, org.name), h('p', { class: 'sub' }, 'Vai trò của anh/chị: ' + (ROLE[myRole] || myRole)))));
+    if (org.status === 'pending_verification') wrap.appendChild(h('div', { class: 'msg info' }, h('b', null, 'Doanh nghiệp đang chờ Zetabiz xác minh. '), 'Trong lúc chờ, anh/chị xem được bảng giá nhưng chưa đặt mua hay mời thành viên. Cần gấp, gọi 0918 566 177.'));
+    if (org.status === 'suspended') wrap.appendChild(h('div', { class: 'msg err' }, 'Doanh nghiệp đang bị tạm ngưng. Vui lòng liên hệ Zetabiz qua 0918 566 177.'));
+    const bar = h('div', { class: 'tabs', role: 'tablist' }, TABS.map(function (t) { return h('button', { type: 'button', role: 'tab', 'aria-selected': t.k === tab ? 'true' : 'false', onclick: function () { if (location.hash.slice(1) === t.k) render(); else location.hash = t.k; } }, t.label); }));
+    pane = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '20px' } });
+    wrap.append(bar, pane); app.appendChild(wrap);
+    ({ home: home, buy: buy, orders: orders, receipts: receipts, members: members, support: support, profile: profile })[tab]();
+  }
+
+  /* ---------- Tổng quan ---------- */
+  async function home() {
+    const r = await Promise.all([
+      sb.from('subscriptions').select('*').eq('organization_id', org.id).order('current_period_end', { ascending: false }),
+      sb.from('subscription_modules').select('*').eq('organization_id', org.id).order('created_at', { ascending: false }),
+      sb.from('notifications').select('*').eq('audience', 'org').eq('organization_id', org.id).order('created_at', { ascending: false }).limit(8),
+      sb.from('orders').select('id,order_code,total_amount,status').eq('organization_id', org.id).eq('status', 'pending_payment')
+    ]);
+    const subs = r[0].data || [], mods = r[1].data || [], notes = r[2].data || [], unpaid = r[3].data || [];
+    const prodIds = Array.from(new Set(subs.map(function (s) { return s.product_id; }).filter(Boolean)));
+    const prods = {};
+    if (prodIds.length) { const p = await sb.from('products').select('id,app_url,name').in('id', prodIds); (p.data || []).forEach(function (x) { prods[x.id] = x; }); }
+    if (unpaid.length) pane.appendChild(h('div', { class: 'msg info' }, 'Có ' + unpaid.length + ' đơn hàng chờ thanh toán. ', h('button', { type: 'button', class: 'link-btn', onclick: function () { go('orders'); } }, 'Thanh toán ngay ›')));
+    pane.appendChild(h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Gói dịch vụ'), h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: function () { go('buy'); } }, '+ Mua / gia hạn')),
+      subs.length ? h('div', { class: 'subs' }, subs.map(function (s) {
+        const left = s.current_period_end ? Math.ceil((new Date(s.current_period_end) - new Date()) / 864e5) : null;
+        const url = s.access_url || (prods[s.product_id] || {}).app_url;
+        return h('div', { class: 'subcard' }, h('b', { style: { fontSize: '16px' } }, s.product_name || 'Dịch vụ'), h('span', { class: 'muted' }, (s.plan_name || '') + ' · ' + fmt.cycle(s.billing_cycle)),
+          h('div', null, chip(SUB, s.status)),
+          h('span', null, 'Hạn dùng: ', h('b', null, fmt.date(s.current_period_end)), left !== null && ['active', 'trial', 'past_due'].indexOf(s.status) >= 0 ? h('span', { class: left <= 14 ? 'neg' : 'muted' }, ' (còn ' + Math.max(0, left) + ' ngày)') : null),
+          s.max_users ? h('span', { class: 'muted' }, 'Tối đa ' + s.max_users + ' nhân viên') : null,
+          h('div', { class: 'row-actions', style: { marginTop: '6px' } },
+            url && ['active', 'trial', 'past_due'].indexOf(s.status) >= 0 ? h('a', { class: 'btn btn-primary btn-sm', href: url, target: '_blank', rel: 'noopener' }, 'Vào ứng dụng') : null,
+            canPay() && s.plan_id ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { renew(s); } }, 'Gia hạn') : null));
+      })) : h('p', { class: 'muted' }, 'Doanh nghiệp chưa có gói dịch vụ nào. Bấm "Mua / gia hạn" để chọn gói.')));
+    if (mods.length) pane.appendChild(h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Mô-đun mua thêm')),
+      h('ul', { class: 'list-plain' }, mods.map(function (m) {
+        const st = { pending_approval: ['Chờ Zetabiz kích hoạt', 'warn'], active: ['Đang dùng', 'ok'], rejected: ['Bị từ chối', 'bad'], trial: ['Dùng thử', 'info'], suspended: ['Tạm ngưng', 'warn'], expired: ['Hết hạn', 'bad'], cancelled: ['Đã hủy', 'bad'] };
+        return h('li', null, h('span', null, h('b', { style: { fontFamily: 'var(--font)' } }, m.module_name), m.reject_reason ? h('small', { class: 'muted', style: { display: 'block' } }, 'Lý do: ' + m.reject_reason) : null),
+          h('span', null, chip(st, m.status), m.current_period_end ? h('small', { class: 'muted', style: { marginLeft: '8px' } }, 'đến ' + fmt.date(m.current_period_end)) : null));
+      }))));
+    pane.appendChild(h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Thông báo')),
+      notes.length ? h('ul', { class: 'timeline' }, notes.map(function (n) { return h('li', null, h('b', null, n.title), n.body ? h('div', null, n.body) : null, h('small', null, fmt.dateTime(n.created_at))); }))
+        : h('p', { class: 'muted' }, 'Chưa có thông báo.')));
+  }
+
+  /* Gia hạn = đặt lại đúng gói đang dùng */
+  async function renew(s) {
+    if (!(await BZ.confirm('Gia hạn ' + (s.product_name || ''), 'Tạo đơn gia hạn gói ' + (s.plan_name || '') + ' (' + fmt.cycle(s.billing_cycle) + '). Sau khi thanh toán và được duyệt, hạn dùng được cộng thêm một kỳ.', 'Tạo đơn gia hạn'))) return;
+    try { const code = await BZ.rpc('place_order', { payload: { organization_id: org.id, plan_id: s.plan_id, contact_email: user.email, note: 'Gia hạn ' + (s.subscription_code || '') } }); afterOrder(code); }
+    catch (e) { BZ.toast(BZ.errText(e), 'err'); }
+  }
+  async function afterOrder(code) {
+    BZ.toast('Đã tạo đơn ' + code + '.', 'ok');
+    const o = await sb.from('orders').select('*').eq('order_code', code).maybeSingle();
+    go('orders');
+    if (o.data) payDialog(o.data);
+  }
+
+  /* ---------- Mua & gia hạn ---------- */
+  async function buy() {
+    const r = await Promise.all([
+      sb.from('products').select('id,name,code,tagline,sales_mode').eq('status', 'published').order('sort_order'),
+      sb.from('product_plans').select('*').eq('is_active', true).order('sort_order'),
+      sb.from('modules').select('id,product_id,name,description,price_amount,billing_cycle').eq('status', 'published').order('sort_order'),
+      sb.from('industries').select('id,name').eq('status', 'published').order('sort_order')
+    ]);
+    const prods = r[0].data || [], plans = r[1].data || [], mods = r[2].data || [], inds = r[3].data || [];
+    if (!prods.length) { pane.appendChild(h('p', { class: 'muted' }, 'Chưa có sản phẩm mở bán.')); return; }
+    let prod = prods.find(function (p) { return p.code === 'ZTB-SKYAGENT'; }) || prods[0], plan = null; const picked = new Set();
+    const prodSel = h('select', null, prods.map(function (p) { return h('option', { value: p.id }, p.name); })); prodSel.value = prod.id;
+    const planBox = h('div', { class: 'plans' }), modBox = h('div', { class: 'mods' }), sumBox = h('div', { class: 'sum' });
+    const note = h('textarea', { rows: '2', maxlength: '500', placeholder: 'Ghi chú cho Zetabiz (không bắt buộc)' });
+    const indSel = h('select', null, h('option', { value: '' }, '— Chọn chuyên ngành —'), inds.map(function (i) { return h('option', { value: i.id }, i.name); }));
+    const indField = BZ.field('Chuyên ngành của doanh nghiệp (cần khi mua mô-đun, chọn một lần)', indSel); indField.hidden = true;
+    function draw() {
+      planBox.textContent = ''; modBox.textContent = '';
+      plans.filter(function (p) { return p.product_id === prod.id; }).forEach(function (p) {
+        const card = h('div', { class: 'plan', role: 'radio', tabindex: '0', 'aria-checked': plan && plan.id === p.id ? 'true' : 'false', onclick: function () { plan = plan && plan.id === p.id ? null : p; draw(); } },
+          h('b', null, p.name), h('span', { class: 'p' }, p.price_amount === null ? 'Báo giá riêng' : fmt.money(p.sale_price_amount || p.price_amount)), h('span', { class: 'muted', style: { fontSize: '12px' } }, fmt.cycle(p.billing_cycle) + (p.tax_rate ? ' · chưa gồm VAT ' + p.tax_rate + '%' : ' · chưa gồm VAT')),
+          h('ul', null, (p.features || []).slice(0, 4).map(function (f) { return h('li', null, String(f)); })));
+        card.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); } });
+        planBox.appendChild(card);
+      });
+      const pm = mods.filter(function (m) { return m.product_id === prod.id; });
+      pm.forEach(function (m) {
+        const cb = h('input', { type: 'checkbox', checked: picked.has(m.id) ? true : null });
+        cb.addEventListener('change', function () { if (cb.checked) picked.add(m.id); else picked.delete(m.id); draw(); });
+        modBox.appendChild(h('label', { class: 'mod' }, cb, h('span', null, h('b', null, m.name), h('small', { class: 'muted', style: { display: 'block' } }, (m.description || '') + ' · ' + fmt.money(m.price_amount) + '/tháng'))));
+      });
+      if (!pm.length) modBox.appendChild(h('p', { class: 'muted' }, 'Sản phẩm này chưa có mô-đun mua thêm.'));
+      indField.hidden = !(picked.size && !org.industry_id);
+      const total = (plan ? (plan.sale_price_amount || plan.price_amount || 0) : 0) + mods.filter(function (m) { return picked.has(m.id); }).reduce(function (s, m) { return s + (Number(m.price_amount) || 0); }, 0);
+      sumBox.textContent = '';
+      sumBox.append(h('span', null, plan ? 'Gói ' + plan.name : 'Chưa chọn gói', picked.size ? ' + ' + picked.size + ' mô-đun' : ''), h('span', null, 'Tạm tính: ', h('b', null, fmt.money(total)), h('small', { class: 'muted', style: { display: 'block', textAlign: 'right' } }, 'Chưa gồm VAT. Giá chính thức tính khi tạo đơn.')));
+    }
+    prodSel.addEventListener('change', function () { prod = prods.find(function (p) { return p.id === prodSel.value; }); plan = null; picked.clear(); draw(); });
+    draw();
+    pane.appendChild(h('section', { class: 'card' },
+      h('div', { class: 'toolbar', style: { marginBottom: '14px' } }, h('label', { class: 'check' }, 'Sản phẩm ', prodSel)),
+      h('h3', { class: 'sec-t' }, '1. Chọn gói'), planBox,
+      h('h3', { class: 'sec-t', style: { marginTop: '18px' } }, '2. Mô-đun mua thêm (không bắt buộc)'), modBox,
+      h('div', { style: { marginTop: '16px', display: 'grid', gap: '14px' } }, indField, BZ.field('Ghi chú', note), sumBox,
+        h('div', null, canPay() ? h('button', { type: 'button', class: 'btn btn-primary', onclick: async function (e) {
+          if (!plan && !picked.size) return BZ.toast('Chọn ít nhất một gói hoặc một mô-đun.', 'err');
+          if (plan && plan.price_amount === null) return BZ.toast('Gói này báo giá riêng. Vào mục Hỗ trợ để gửi yêu cầu báo giá.', 'err');
+          const b = e.currentTarget; b.disabled = true;
+          try {
+            if (picked.size && !org.industry_id) {
+              if (!indSel.value) throw new Error('Chọn chuyên ngành của doanh nghiệp trước khi mua mô-đun.');
+              await BZ.rpc('org_set_industry_once', { _org: org.id, _industry: indSel.value }); org.industry_id = indSel.value;
+            }
+            const code = await BZ.rpc('place_order', { payload: { organization_id: org.id, plan_id: plan ? plan.id : null, module_ids: Array.from(picked), billing_cycle: plan ? plan.billing_cycle : 'monthly', contact_email: user.email, note: note.value.trim() } });
+            afterOrder(code);
+          } catch (err) { BZ.toast(BZ.errText(err), 'err'); } finally { b.disabled = false; }
+        } }, 'Tạo đơn hàng & thanh toán') : h('p', { class: 'muted' }, org.status !== 'active' ? 'Doanh nghiệp cần được xác minh trước khi đặt mua.' : 'Chỉ Chủ doanh nghiệp hoặc Quản trị đặt mua và thanh toán được.')))));
+  }
+
+  /* ---------- Đơn hàng & thanh toán ---------- */
+  async function orders() {
+    const r = await sb.from('orders').select('*').eq('organization_id', org.id).order('created_at', { ascending: false });
+    const list = r.data || [];
+    pane.appendChild(h('section', { class: 'card' }, h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+      h('thead', null, h('tr', null, ['Mã đơn', 'Dịch vụ', 'Tổng tiền', 'Trạng thái', 'Ngày tạo', ''].map(function (x, i) { return h('th', { style: i === 2 ? { textAlign: 'right' } : null }, x); }))),
+      h('tbody', null, list.length ? list.map(function (o) {
+        return h('tr', null, h('td', null, h('b', null, o.order_code)), h('td', null, [o.product_name, o.plan_name].filter(Boolean).join(' – ') || 'Mô-đun mua thêm'),
+          h('td', { class: 'num' }, fmt.money(o.total_amount)), h('td', null, chip(ORD, o.status)), h('td', null, fmt.date(o.created_at)),
+          h('td', null, h('div', { class: 'row-actions' }, h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { orderDetail(o); } }, 'Chi tiết'),
+            o.status === 'pending_payment' && canPay() ? h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: function () { payDialog(o); } }, 'Thanh toán') : null)));
+      }) : BZ.emptyRow(6, 'Chưa có đơn hàng.'))))));
+  }
+  async function orderDetail(o) {
+    const it = await sb.from('order_items').select('*').eq('order_id', o.id).order('sort_order');
+    const pays = await sb.from('payments').select('*').eq('order_id', o.id).order('created_at');
+    BZ.modal({ title: 'Đơn ' + o.order_code, wide: true, body: h('div', { style: { display: 'grid', gap: '14px' } },
+      h('div', { class: 'table-wrap' }, h('table', { class: 't', style: { minWidth: '0' } }, h('thead', null, h('tr', null, h('th', null, 'Hạng mục'), h('th', null, 'Chu kỳ'), h('th', { style: { textAlign: 'right' } }, 'Thành tiền'))),
+        h('tbody', null, (it.data || []).map(function (x) { return h('tr', null, h('td', null, x.name_snapshot), h('td', null, fmt.cycle(x.billing_cycle)), h('td', { class: 'num' }, fmt.money(x.line_amount !== null ? x.line_amount : x.unit_amount))); })))),
+      FIN_kv([['Tạm tính', fmt.money(o.subtotal_amount)], o.setup_fee_amount ? ['Phí khởi tạo', fmt.money(o.setup_fee_amount)] : null, o.discount_amount ? ['Giảm giá', '− ' + fmt.money(o.discount_amount)] : null,
+        ['Thuế (' + (o.tax_rate || 0) + '%)', fmt.money(o.tax_amount)], ['Tổng cộng', h('b', null, fmt.money(o.total_amount))], ['Trạng thái', chip(ORD, o.status)]]),
+      (pays.data || []).length ? h('div', null, h('h3', { class: 'sec-t' }, 'Thanh toán'), h('ul', { class: 'timeline' }, pays.data.map(function (p) {
+        return h('li', null, p.payment_code + ' · ' + fmt.money(p.amount) + ' · ', chip(PAY, p.status), p.rejected_reason ? h('small', null, 'Lý do từ chối: ' + p.rejected_reason) : null);
+      }))) : null),
+      actions: [{ label: 'Đóng', kind: 'ghost' }].concat(o.status === 'pending_payment' && canPay() ? [{ label: 'Thanh toán', kind: 'primary', onClick: function (c) { c(); payDialog(o); } }] : []) });
+  }
+  function FIN_kv(pairs) { return h('dl', { class: 'kv' }, pairs.filter(Boolean).map(function (p) { return [h('dt', null, p[0]), h('dd', null, p[1])]; })); }
+
+  /* Chuyển khoản: hiện QR VietQR + thông tin, khách tải ảnh chuyển khoản rồi báo đã chuyển */
+  async function payDialog(o) {
+    let pid;
+    try { pid = await BZ.rpc('payment_start', { _order: o.id }); } catch (e) { return BZ.toast(BZ.errText(e), 'err'); }
+    const pr = await sb.from('payments').select('*').eq('id', pid).maybeSingle();
+    const p = pr.data;
+    if (p && p.status === 'submitted') return BZ.toast('Anh/chị đã báo chuyển khoản cho đơn này. Zetabiz đang đối soát.', 'ok');
+    const ref = p.transfer_reference || o.order_code;
+    const qr = BANK.bank_bin && BANK.account_no ? 'https://img.vietqr.io/image/' + encodeURIComponent(BANK.bank_bin) + '-' + encodeURIComponent(BANK.account_no) + '-compact2.png?amount=' + Math.round(p.amount) + '&addInfo=' + encodeURIComponent(ref) + '&accountName=' + encodeURIComponent(BANK.account_name || '') : null;
+    const file = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,application/pdf' });
+    const date = h('input', { type: 'date', value: new Date().toISOString().slice(0, 10) });
+    const note = h('input', { type: 'text', maxlength: '300', placeholder: 'VD: chuyển từ TK Vietcombank của công ty' });
+    BZ.modal({ title: 'Thanh toán đơn ' + o.order_code, wide: true, body: h('div', { style: { display: 'grid', gap: '16px' } },
+      h('div', { class: 'qr' }, qr ? h('img', { src: qr, alt: 'Mã QR chuyển khoản ' + fmt.money(p.amount) }) : null,
+        FIN_kv([['Ngân hàng', BANK.bank_name], ['Số tài khoản', h('b', { class: 'mono' }, BANK.account_no || '')], ['Chủ tài khoản', BANK.account_name], ['Số tiền', h('b', null, fmt.money(p.amount))], ['Nội dung CK', h('b', { class: 'mono' }, ref)]])),
+      h('div', { class: 'msg info' }, 'Ghi đúng nội dung chuyển khoản ', h('b', null, ref), ' để Zetabiz đối soát nhanh. Chuyển xong, tải ảnh/biên lai chuyển khoản và bấm "Tôi đã chuyển khoản".'),
+      h('div', { class: 'form-grid' }, BZ.field('Ảnh hoặc biên lai chuyển khoản *', file, 'PNG, JPG hoặc PDF, tối đa 5 MB'), BZ.field('Ngày chuyển', date), h('div', { class: 'span2' }, BZ.field('Ghi chú', note)))),
+      actions: [{ label: 'Để sau', kind: 'ghost' }, { label: 'Tôi đã chuyển khoản', kind: 'primary', onClick: async function (close, msg) {
+        const f = file.files[0];
+        if (!f) { msg.textContent = 'Tải ảnh hoặc biên lai chuyển khoản.'; msg.hidden = false; return; }
+        if (f.size > 5 * 1024 * 1024) { msg.textContent = 'Tệp lớn hơn 5 MB.'; msg.hidden = false; return; }
+        const safe = f.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.-]+/g, '_').slice(-60);
+        const path = org.id + '/' + p.id + '/' + Date.now() + '-' + safe;
+        const up = await sb.storage.from('payment-proofs').upload(path, f, { contentType: f.type });
+        if (up.error) throw up.error;
+        const ins = await sb.from('payment_proofs').insert({ payment_id: p.id, bucket: 'payment-proofs', path: path, file_name: f.name.slice(0, 200), mime_type: f.type, size_bytes: f.size, uploaded_by: user.id });
+        if (ins.error) throw ins.error;
+        await BZ.rpc('payment_submit', { _payment: p.id, _transferred_at: date.value, _note: note.value.trim() || null });
+        close(); BZ.toast('Đã gửi. Zetabiz sẽ đối soát và kích hoạt trong giờ làm việc.', 'ok'); render();
+      } }] });
+  }
+
+  /* ---------- Chứng từ ---------- */
+  async function receipts() {
+    const r = await sb.from('payment_receipts').select('*').eq('organization_id', org.id).neq('status', 'draft').order('receipt_date', { ascending: false });
+    const list = r.data || [];
+    pane.appendChild(h('section', { class: 'card' }, h('p', { class: 'muted', style: { marginBottom: '12px', fontSize: '14px' } }, 'Chứng từ xác nhận Zetabiz đã nhận tiền, phát hành khi thanh toán được duyệt. Hóa đơn GTGT (nếu có) được gửi riêng.'),
+      h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+        h('thead', null, h('tr', null, ['Số chứng từ', 'Ngày', 'Dịch vụ', 'Số tiền', 'Trạng thái', ''].map(function (x, i) { return h('th', { style: i === 3 ? { textAlign: 'right' } : null }, x); }))),
+        h('tbody', null, list.length ? list.map(function (x) {
+          return h('tr', null, h('td', null, h('b', null, x.receipt_code)), h('td', null, fmt.date(x.receipt_date)), h('td', null, [x.product_name, x.plan_name].filter(Boolean).join(' – ')),
+            h('td', { class: 'num' }, fmt.money(x.total_amount)), h('td', null, x.status === 'cancelled' ? h('span', { class: 'chip bad' }, 'Đã hủy') : h('span', { class: 'chip ok' }, 'Hợp lệ')),
+            h('td', null, h('div', { class: 'row-actions' }, h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { RECEIPT.print(x); } }, 'In / PDF'),
+              h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { RECEIPT.excel(x); } }, 'Excel'))));
+        }) : BZ.emptyRow(6, 'Chưa có chứng từ.'))))));
+  }
+
+  /* ---------- Thành viên ---------- */
+  async function members() {
+    let list = [];
+    try { list = await BZ.rpc('org_members', { _org: org.id }) || []; } catch (e) { pane.appendChild(h('div', { class: 'msg err' }, BZ.errText(e))); return; }
+    const inv = canManage() ? await sb.from('organization_invites').select('*').eq('organization_id', org.id).in('status', ['pending', 'expired']).order('created_at', { ascending: false }) : { data: [] };
+    const roleSel = function (v) { return h('select', null, ['admin', 'billing', 'member', 'viewer'].concat(myRole === 'owner' ? ['owner'] : []).map(function (k) { return h('option', { value: k, selected: k === v ? true : null }, ROLE[k]); })); };
+    pane.appendChild(h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Thành viên (' + list.length + ')'),
+      canManage() ? h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: invite }, '+ Mời thành viên') : null),
+      h('p', { class: 'muted', style: { fontSize: '13px', marginBottom: '10px' } }, 'Đây là người quản lý tài khoản dịch vụ (mua, thanh toán, chứng từ). Nhân viên dùng phần mềm hằng ngày được tạo trong chính ứng dụng.'),
+      h('div', { class: 'table-wrap' }, h('table', { class: 't' }, h('thead', null, h('tr', null, ['Họ tên', 'Email', 'Vai trò', 'Trạng thái', ''].map(function (x) { return h('th', null, x); }))),
+        h('tbody', null, list.map(function (m) {
+          const me = m.user_id === user.id;
+          return h('tr', { style: m.is_active ? null : { opacity: '.55' } }, h('td', null, h('b', null, m.full_name || '—'), me ? h('small', null, 'Anh/chị') : null), h('td', null, m.email || '—'),
+            h('td', null, ROLE[m.role] || m.role), h('td', null, m.is_active ? h('span', { class: 'chip ok' }, 'Hoạt động') : h('span', { class: 'chip bad' }, 'Đã khóa')),
+            h('td', null, canManage() && !me ? h('div', { class: 'row-actions' },
+              h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () {
+                const s = roleSel(m.role);
+                BZ.modal({ title: 'Đổi vai trò ' + (m.full_name || m.email), body: BZ.field('Vai trò', s), actions: [{ label: 'Hủy', kind: 'ghost' }, { label: 'Lưu', kind: 'primary', onClick: async function (c) { await BZ.rpc('org_set_member_role', { _member_id: m.member_id, _role: s.value }); c(); BZ.toast('Đã đổi vai trò.', 'ok'); render(); } }] });
+              } }, 'Vai trò'),
+              h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: async function () {
+                try { await BZ.rpc('org_set_member_active', { _member_id: m.member_id, _active: !m.is_active }); BZ.toast(m.is_active ? 'Đã khóa.' : 'Đã mở khóa.', 'ok'); render(); } catch (e) { BZ.toast(BZ.errText(e), 'err'); }
+              } }, m.is_active ? 'Khóa' : 'Mở khóa')) : null));
+        }))))));
+    if ((inv.data || []).length) pane.appendChild(h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Lời mời đang chờ')),
+      h('ul', { class: 'list-plain' }, inv.data.map(function (x) {
+        return h('li', null, h('span', null, x.email + ' · ' + (ROLE[x.role] || x.role), h('small', { class: 'muted', style: { display: 'block' } }, x.status === 'expired' ? 'Đã hết hạn' : 'Hết hạn ' + fmt.date(x.expires_at))),
+          h('span', { class: 'row-actions' }, h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: async function () { await BZ.rpc('org_resend_invite', { _invite_id: x.id }); BZ.toast('Đã gia hạn lời mời 14 ngày.', 'ok'); render(); } }, 'Gia hạn'),
+            x.status === 'pending' ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: async function () { await BZ.rpc('org_revoke_invite', { _invite_id: x.id }); BZ.toast('Đã thu hồi.', 'ok'); render(); } }, 'Thu hồi') : null));
+      }))));
+    function invite() {
+      const em = h('input', { type: 'email' }), s = roleSel('member');
+      BZ.modal({ title: 'Mời thành viên', body: h('div', { style: { display: 'grid', gap: '14px' } }, BZ.field('Email', em), BZ.field('Vai trò', s),
+        h('p', { class: 'muted', style: { fontSize: '13px' } }, 'Gửi cho người được mời đường dẫn ' + location.origin + '/tai-khoan/ — họ đăng ký bằng đúng email này là tự vào doanh nghiệp.')),
+        actions: [{ label: 'Hủy', kind: 'ghost' }, { label: 'Tạo lời mời', kind: 'primary', onClick: async function (c) {
+          await BZ.rpc('org_invite_member', { _org: org.id, _email: em.value.trim(), _role: s.value }); c();
+          BZ.toast('Đã tạo lời mời. Gửi đường dẫn ' + location.origin + '/tai-khoan/ cho người được mời.', 'ok'); render();
+        } }] });
+    }
+  }
+
+  /* ---------- Hỗ trợ ---------- */
+  async function support() {
+    const r = await sb.from('support_tickets').select('*').eq('organization_id', org.id).order('last_message_at', { ascending: false, nullsFirst: false });
+    const list = r.data || [];
+    pane.appendChild(h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Yêu cầu hỗ trợ'), org.status === 'active' ? h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: newTicket }, '+ Gửi yêu cầu') : null),
+      h('div', { class: 'table-wrap' }, h('table', { class: 't' }, h('thead', null, h('tr', null, ['Mã', 'Tiêu đề', 'Trạng thái', 'Cập nhật'].map(function (x) { return h('th', null, x); }))),
+        h('tbody', null, list.length ? list.map(function (t) {
+          return h('tr', { class: 'clickable', onclick: function () { openTicket(t); } }, h('td', null, h('b', null, t.ticket_code)), h('td', null, t.subject), h('td', null, chip(TK, t.status)), h('td', null, fmt.dateTime(t.last_message_at || t.created_at)));
+        }) : BZ.emptyRow(4, 'Chưa có yêu cầu nào. Cần giúp gì, bấm "Gửi yêu cầu" — đội ngũ Zetabiz trả lời ngay tại đây.'))))));
+    function newTicket() {
+      const subj = h('input', { type: 'text', maxlength: '200' }), body = h('textarea', { rows: '5', maxlength: '5000' });
+      const cat = h('select', null, ['Hướng dẫn sử dụng', 'Báo lỗi', 'Thanh toán & gói', 'Yêu cầu báo giá', 'Khác'].map(function (x) { return h('option', null, x); }));
+      const phone = h('input', { type: 'tel', value: org.phone || '' });
+      BZ.modal({ title: 'Gửi yêu cầu hỗ trợ', wide: true, body: h('div', { class: 'form-grid' }, h('div', { class: 'span2' }, BZ.field('Tiêu đề *', subj)), BZ.field('Loại', cat), BZ.field('Số điện thoại liên hệ', phone),
+        h('div', { class: 'span2' }, BZ.field('Nội dung *', body, 'Mô tả cụ thể: đang làm gì, thấy gì, mong muốn gì'))),
+        actions: [{ label: 'Hủy', kind: 'ghost' }, { label: 'Gửi', kind: 'primary', onClick: async function (c) {
+          const code = await BZ.rpc('support_create_ticket', { payload: { organization_id: org.id, subject: subj.value, body: body.value, category: cat.value, contact_name: (user.user_metadata && user.user_metadata.full_name) || user.email, contact_email: user.email, contact_phone: phone.value } });
+          c(); BZ.toast('Đã gửi yêu cầu ' + code + '.', 'ok'); render();
+        } }] });
+    }
+    async function openTicket(t) {
+      const m = await sb.from('support_ticket_messages').select('*').eq('ticket_id', t.id).order('created_at');
+      const thread = h('div', { class: 'thread' }, (m.data || []).map(function (x) { return h('div', { class: 'bubble ' + (x.is_staff ? 'staff' : 'me') }, x.body, h('small', null, (x.is_staff ? (x.author_name || 'Zetabiz') : (x.author_name || 'Anh/chị')) + ' · ' + fmt.dateTime(x.created_at))); }));
+      const rep = h('textarea', { rows: '3', maxlength: '5000', placeholder: 'Nhập phản hồi…' });
+      const closed = t.status === 'closed';
+      BZ.modal({ title: t.ticket_code + ' · ' + t.subject, wide: true, body: h('div', { style: { display: 'grid', gap: '14px' } }, chip(TK, t.status), thread, closed ? h('p', { class: 'muted' }, 'Yêu cầu đã đóng. Gửi yêu cầu mới nếu cần.') : BZ.field('Phản hồi', rep)),
+        actions: [{ label: 'Đóng', kind: 'ghost' }].concat(closed ? [] : [{ label: 'Gửi phản hồi', kind: 'primary', onClick: async function (c, msg) {
+          if (rep.value.trim().length < 2) { msg.textContent = 'Nhập nội dung.'; msg.hidden = false; return; }
+          const r2 = await sb.from('support_ticket_messages').insert({ ticket_id: t.id, author_id: user.id, author_name: (user.user_metadata && user.user_metadata.full_name) || user.email, is_staff: false, body: rep.value.trim() });
+          if (r2.error) throw r2.error; c(); BZ.toast('Đã gửi phản hồi.', 'ok'); render();
+        } }]) });
+      setTimeout(function () { thread.scrollTop = thread.scrollHeight; }, 50);
+    }
+  }
+
+  /* ---------- Hồ sơ công ty ---------- */
+  function profile() {
+    const f = {}; ['name', 'tax_code', 'address', 'representative', 'phone', 'email'].forEach(function (k) { f[k] = h('input', { type: k === 'email' ? 'email' : 'text', value: org[k] || '', disabled: canManage() ? null : true }); });
+    pane.appendChild(h('section', { class: 'card', style: { maxWidth: '760px' } }, h('div', { class: 'form-grid' },
+      h('div', { class: 'span2' }, BZ.field('Tên doanh nghiệp', f.name)), BZ.field('Mã số thuế', f.tax_code), BZ.field('Người đại diện', f.representative),
+      h('div', { class: 'span2' }, BZ.field('Địa chỉ', f.address)), BZ.field('Điện thoại', f.phone), BZ.field('Email nhận chứng từ', f.email)),
+      h('div', { style: { marginTop: '16px' } }, canManage() ? h('button', { type: 'button', class: 'btn btn-primary', onclick: async function () {
+        try { const p = { organization_id: org.id }; Object.keys(f).forEach(function (k) { p[k] = f[k].value.trim(); }); await BZ.rpc('org_update_profile', { payload: p }); BZ.toast('Đã lưu hồ sơ.', 'ok'); start(); } catch (e) { BZ.toast(BZ.errText(e), 'err'); }
+      } }, 'Lưu hồ sơ') : h('p', { class: 'muted' }, 'Chỉ Chủ doanh nghiệp hoặc Quản trị sửa được hồ sơ.'))));
+  }
+
+  /* ---------- Khởi động ---------- */
+  const hk = location.hash.slice(1);
+  if (TABS.some(function (t) { return t.k === hk; })) tab = hk;
+  window.addEventListener('hashchange', function () {
+    const k = location.hash.slice(1);
+    if (org && k !== tab && TABS.some(function (t) { return t.k === k; })) { tab = k; render(); }
+  });
+  sb.auth.onAuthStateChange(function (ev) { if (ev === 'PASSWORD_RECOVERY') resetView(); });
+  if (/type=recovery/.test(location.hash)) resetView(); else start();
+})();
+</script>
+</body>
+</html>
