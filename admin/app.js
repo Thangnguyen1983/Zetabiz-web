@@ -52,6 +52,8 @@
     receipts: ['t-green', '<path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z" fill="#fff"/><path d="M9 8h6M9 11.5h6M9 15h4" stroke="#047857" stroke-width="1.6" stroke-linecap="round"/>'],
     support: ['t-sky', '<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4h0A2.5 2.5 0 0 1 4 13.5z" fill="#fff"/><circle cx="9" cy="10" r="1.2" fill="#0369A1"/><circle cx="12" cy="10" r="1.2" fill="#0369A1"/><circle cx="15" cy="10" r="1.2" fill="#0369A1"/>'],
     audit: ['t-slate', '<rect x="5" y="3" width="14" height="18" rx="2.5" fill="#fff"/><path d="M8.5 8h7M8.5 11.5h7M8.5 15h4" stroke="#475569" stroke-width="1.6" stroke-linecap="round"/><circle cx="17" cy="17" r="3.5" fill="#F59E0B"/><path d="M17 15.5v1.7l1 .7" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/>'],
+    reports: ['t-blue', '<rect x="3" y="3" width="18" height="18" rx="3" fill="#fff" fill-opacity=".35"/><rect x="6" y="13" width="3" height="5" rx="1" fill="#fff"/><rect x="10.5" y="9" width="3" height="9" rx="1" fill="#fff"/><rect x="15" y="6" width="3" height="12" rx="1" fill="#fff"/>'],
+    blog: ['t-pink', '<path d="M5 4h10l4 4v12H5z" fill="#fff"/><path d="M8 10h8M8 13.5h8M8 17h5" stroke="#DB2777" stroke-width="1.6" stroke-linecap="round"/><circle cx="18" cy="18" r="3.4" fill="#F59E0B"/><path d="m20.4 20.4 1.6 1.6" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>'],
     settings: ['t-slate', '<path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" fill="#fff"/><circle cx="12" cy="12" r="3.2" fill="#475569"/>']
   };
   function icon3d(name, big) {
@@ -68,11 +70,13 @@
     { key: 'support', label: 'Hỗ trợ khách hàng', href: '/admin/support.html' },
     { key: 'receipts', label: 'Chứng từ thanh toán', href: '/admin/receipts.html' },
     { key: 'catalog', label: 'Sản phẩm & bảng giá', href: '/admin/catalog.html' },
+    { key: 'reports', label: 'Báo cáo kinh doanh', href: '/admin/reports.html' },
     { key: 'finance', label: 'Tổng quan tài chính', href: '/admin/finance.html', section: 'TÀI CHÍNH' },
     { key: 'cashbook', label: 'Thu – chi & sổ quỹ', href: '/admin/finance-cash.html' },
     { key: 'budget', label: 'Chi phí & ngân sách', href: '/admin/finance-budget.html' },
     { key: 'debts', label: 'Công nợ', href: '/admin/finance-debts.html' },
     { key: 'content', label: 'Nội dung trang', href: '/admin/content.html', section: 'HỆ THỐNG' },
+    { key: 'blog', label: 'Blog & SEO', href: '/admin/blog.html' },
     { key: 'ai', label: 'Đào tạo Trợ lý AI', href: '/admin/ai.html' },
     { key: 'settings', label: 'Cài đặt', href: '/admin/settings.html' },
     { key: 'audit', label: 'Nhật ký thao tác', href: '/admin/audit.html' },

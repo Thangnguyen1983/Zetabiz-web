@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script>if(/^(biztech-web|zetabiz)(-mhtbiz)?\.vercel\.app$/.test(location.hostname))location.replace('https://mhtbiz.com'+location.pathname+location.search+location.hash);</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Blog & SEO – Quản trị Zetabiz</title>
+<link rel="icon" type="image/png" href="/assets/zetabiz-mark-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>
+.ed{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+@media (max-width:1100px){.ed{grid-template-columns:1fr}}
+.ed .edside{display:flex;flex-direction:column;gap:16px}
+.ed input.title,.ed textarea.md,.faq-row input,.faq-row textarea,.ed textarea.src{width:100%;border:1px solid var(--line-2);border-radius:10px;background:#fff;color:var(--text);padding:10px 12px;font:inherit}
+.faq-row input{height:42px}.ed textarea.src{min-height:80px;resize:vertical}
+.ed textarea.md{padding:12px 14px}
+.ed textarea.md{min-height:520px;font:14px/1.6 var(--mono)!important;resize:vertical}
+.ed input.title{font:600 22px var(--font);height:auto;padding:10px 12px}
+.mdbar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+.mdbar button{min-width:36px;height:34px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font:600 13px var(--font);color:var(--text-2);padding:0 8px}
+.mdbar button:hover{background:var(--primary-soft);color:var(--primary)}
+.mdbar .sp{flex:1}
+.prev{border:1px solid var(--line);border-radius:12px;padding:6px 22px;min-height:520px;max-height:80vh;overflow:auto;background:#fff;line-height:1.7}
+.prev h2{font-size:22px;margin:24px 0 8px}.prev h3{font-size:18px;margin:18px 0 6px}
+.prev ul.check{list-style:none;padding-left:0}.prev ul.check li::before{content:'☐ ';color:var(--primary)}.prev ul.check li.done::before{content:'☑ '}
+.prev blockquote{border-left:4px solid var(--primary);margin:12px 0;padding:4px 14px;background:var(--primary-soft)}
+.prev table{border-collapse:collapse}.prev td,.prev th{border:1px solid var(--line);padding:6px 8px}
+.prev img{max-width:100%;border-radius:8px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:1300px){.split{grid-template-columns:1fr}}
+.cnt{font:12px var(--mono);color:var(--muted);float:right}.cnt.bad{color:var(--danger)}.cnt.ok{color:var(--success)}
+.serp{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;font-family:Arial,sans-serif}
+.serp .u{font-size:12px;color:#202124}.serp .t{font-size:18px;color:#1a0dab;line-height:1.3;margin:2px 0}.serp .d{font-size:13px;color:#4d5156;line-height:1.5}
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13px}
+.checks li{display:flex;gap:8px;align-items:flex-start}.checks li i{font-style:normal;width:18px;flex:none;text-align:center}
+.checks li.ok i{color:var(--success)}.checks li.warn i{color:#B45309}.checks li.bad i{color:var(--danger)}
+.score{display:flex;align-items:center;gap:12px}.score b{font:600 30px var(--mono)}.score b.pos{color:var(--success)}.score b.neg{color:var(--danger)}
+.faq-row{display:grid;gap:6px;padding:10px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+.faq-row .row-actions{justify-content:flex-end}
+.cover-prev{width:100%;aspect-ratio:1200/630;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
+</style>
+</head>
+<body data-page="blog">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script src="/assets/md.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, sb = ctx.sb, main = ctx.main, fmt = BZ.fmt, MD = window.ZBMD;
+  const canEdit = ctx.can.admin || ctx.roles.indexOf('editor') >= 0;
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  /* Đường dẫn nội bộ đang tồn tại trên mhtbiz.com – link khác bắt đầu bằng "/" bị coi là link hỏng */
+  const OK_PATHS = [/^\/$/, /^\/#/, /^\/bao-gia\/?(#.*)?$/, /^\/blog(\/[a-z0-9-]+)?\/?$/, /^\/blog\/chu-de\/[a-z0-9-]+\/?$/, /^\/tai-khoan\/?$/, /^\/chinh-sach-bao-mat\/?$/, /^\/dieu-khoan\/?$/];
+  let cats = [], authors = [], slugs = {};
+
+  main.appendChild(BZ.pageHead('Blog & SEO', 'Viết, hẹn giờ và tối ưu bài viết cho Google. Bài đăng tại mhtbiz.com/blog, tự có sitemap, dữ liệu cấu trúc và hỏi đáp.'));
+  if (!canEdit) main.appendChild(h('div', { class: 'msg info' }, 'Bạn đang ở chế độ xem. Quản trị hoặc Biên tập mới viết và đăng bài được.'));
+  const host = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '20px' } });
+  main.appendChild(host);
+
+  async function lookups() {
+    const r = await Promise.all([sb.from('blog_categories').select('*').order('sort_order'), sb.from('blog_authors').select('id,name').order('name'), sb.from('blog_articles').select('id,slug')]);
+    cats = r[0].data || []; authors = r[1].data || []; slugs = {}; (r[2].data || []).forEach(function (x) { slugs[x.slug] = x.id; });
+  }
+
+  /* Trạng thái hiển thị: "Đã xuất bản" với ngày đăng tương lai = Hẹn giờ */
+  function stateOf(a) {
+    if (a.status === 'published' && a.published_at && new Date(a.published_at) > new Date()) return ['Hẹn giờ ' + fmt.dateTime(a.published_at), 'blue'];
+    return ({ draft: ['Nháp', 'info'], review: ['Chờ duyệt', 'warn'], scheduled: ['Hẹn giờ', 'blue'], published: ['Đã xuất bản', 'ok'], archived: ['Lưu trữ', 'bad'] })[a.status] || [a.status, 'info'];
+  }
+
+  /* ================= Chấm điểm SEO ================= */
+  function norm(s) { return String(s || '').toLowerCase().normalize('NFC'); }
+  function seoChecks(a) {
+    const kw = norm(a.focus_keyword).trim(), txt = MD.text(a.content), words = txt ? txt.split(/\s+/).length : 0;
+    const title = a.seo_title || a.title || '', desc = a.seo_description || '';
+    const first = norm((String(a.content || '').split(/\n\s*\n/).find(function (p) { return p.trim() && !/^#/.test(p.trim()); }) || ''));
+    const h2s = (String(a.content || '').match(/^##\s+.+$/gm) || []);
+    const links = MD.links(a.content), internal = links.filter(function (l) { return !l.image && /^\//.test(l.url); });
+    const broken = internal.filter(function (l) { return !OK_PATHS.some(function (re) { return re.test(l.url); }); });
+    const imgs = links.filter(function (l) { return l.image; });
+    const faqs = (a.faqs || []).filter(function (f) { return f.question && f.answer; });
+    const C = [];
+    function add(level, text) { C.push({ level: level, text: text }); }
+    title.length >= 30 && title.length <= 65 ? add('ok', 'Tiêu đề SEO dài ' + title.length + ' ký tự (nên 30–65).') : add(title.length ? 'warn' : 'bad', 'Tiêu đề SEO dài ' + title.length + ' ký tự — nên 30–65 để Google không cắt.');
+    desc.length >= 120 && desc.length <= 160 ? add('ok', 'Mô tả SEO dài ' + desc.length + ' ký tự.') : add(desc.length ? 'warn' : 'bad', desc.length ? 'Mô tả SEO dài ' + desc.length + ' ký tự — nên 120–160.' : 'Chưa có mô tả SEO.');
+    if (!kw) add('bad', 'Chưa đặt từ khóa chính.');
+    else {
+      norm(title).indexOf(kw) >= 0 ? add('ok', 'Từ khóa có trong tiêu đề SEO.') : add('bad', 'Từ khóa chưa có trong tiêu đề SEO.');
+      norm(desc).indexOf(kw) >= 0 ? add('ok', 'Từ khóa có trong mô tả SEO.') : add('warn', 'Nên đưa từ khóa vào mô tả SEO.');
+      first.indexOf(kw) >= 0 ? add('ok', 'Từ khóa xuất hiện ở đoạn đầu.') : add('warn', 'Nên nhắc từ khóa trong đoạn đầu tiên.');
+      (a.slug || '').indexOf(MD.slugify(kw)) >= 0 ? add('ok', 'Đường dẫn chứa từ khóa.') : add('warn', 'Đường dẫn chưa chứa từ khóa (' + MD.slugify(kw) + ').');
+      h2s.some(function (x) { return norm(x).indexOf(kw) >= 0; }) ? add('ok', 'Có tiêu đề mục (##) chứa từ khóa.') : add('warn', 'Nên có ít nhất một tiêu đề mục (##) chứa từ khóa.');
+    }
+    words >= 800 ? add('ok', 'Bài dài ' + words + ' từ.') : add(words >= 400 ? 'warn' : 'bad', 'Bài mới ' + words + ' từ — bài chuyên sâu nên từ 800 từ.');
+    h2s.length >= 3 ? add('ok', h2s.length + ' mục lớn (##) — có mục lục tự động.') : add('warn', 'Mới ' + h2s.length + ' mục lớn (##). Nên chia ít nhất 3 mục.');
+    internal.length >= 2 ? add('ok', internal.length + ' liên kết nội bộ.') : add('warn', 'Nên có ít nhất 2 liên kết tới trang khác của mhtbiz.com (bảng giá, bài liên quan).');
+    if (broken.length) add('bad', 'Liên kết hỏng (trang không tồn tại): ' + broken.map(function (l) { return l.url; }).join(', '));
+    if (imgs.some(function (i) { return !i.text.trim(); })) add('warn', 'Có ảnh chưa có mô tả (alt).');
+    a.featured_image_url ? (a.featured_image_alt ? add('ok', 'Có ảnh đại diện kèm mô tả.') : add('warn', 'Ảnh đại diện chưa có mô tả (alt).')) : add('warn', 'Chưa có ảnh đại diện — chia sẻ Facebook/Zalo sẽ không có hình.');
+    faqs.length >= 3 ? add('ok', faqs.length + ' câu hỏi đáp (hiện dạng FAQ trên Google).') : add('warn', 'Nên có từ 3 câu hỏi đáp.');
+    a.excerpt ? add('ok', 'Có đoạn tóm tắt.') : add('warn', 'Chưa có đoạn tóm tắt.');
+    if (/\bMHT (OpsCenter|SalesHub|AutoFlow|WebSuite|AirAgency)\b/.test(a.content || '')) add('bad', 'Bài nhắc tới sản phẩm MHT cũ đã ngừng bán — nên đổi sang sản phẩm Zetabiz.');
+    const pts = C.reduce(function (s, c) { return s + (c.level === 'ok' ? 2 : c.level === 'warn' ? 1 : 0); }, 0);
+    return { checks: C, score: Math.round(pts / (C.length * 2) * 100), words: words, broken: broken.length };
+  }
+  function scoreChip(n) { return h('span', { class: 'chip ' + (n >= 80 ? 'ok' : n >= 60 ? 'warn' : 'bad') }, n + '/100'); }
+
+  /* ================= Danh sách ================= */
+  let tab = 'all';
+  async function list() {
+    host.textContent = ''; history.replaceState(null, '', location.pathname);
+    await lookups();
+    const TABS = [['all', 'Tất cả bài'], ['published', 'Đã xuất bản'], ['draft', 'Nháp & chờ duyệt'], ['archived', 'Lưu trữ'], ['cats', 'Chuyên mục']];
+    const bar = h('div', { class: 'tabs', role: 'tablist' }, TABS.map(function (t) { return h('button', { type: 'button', role: 'tab', 'aria-selected': t[0] === tab ? 'true' : 'false', onclick: function () { tab = t[0]; list(); } }, t[1]); }));
+    const top = h('div', { class: 'toolbar' }, canEdit && tab !== 'cats' ? h('button', { type: 'button', class: 'btn btn-primary', onclick: function () { edit(null); } }, '+ Viết bài mới') : null,
+      canEdit && tab === 'cats' ? h('button', { type: 'button', class: 'btn btn-primary', onclick: function () { catForm(null); } }, '+ Thêm chuyên mục') : null,
+      h('span', { style: { flex: '1' } }), h('a', { class: 'btn btn-ghost', href: '/blog', target: '_blank', rel: 'noopener' }, 'Xem blog ↗'), h('a', { class: 'btn btn-ghost', href: '/sitemap.xml', target: '_blank', rel: 'noopener' }, 'Sitemap ↗'));
+    const card = h('section', { class: 'card' }, bar, h('div', { style: { margin: '14px 0' } }, top));
+    host.appendChild(card);
+    if (tab === 'cats') return catList(card);
+    let q = sb.from('blog_articles').select('id,title,slug,status,published_at,updated_at,category_id,seo_title,seo_description,focus_keyword,content,excerpt,faqs,featured_image_url,featured_image_alt').order('updated_at', { ascending: false });
+    if (tab === 'published') q = q.eq('status', 'published'); else if (tab === 'draft') q = q.in('status', ['draft', 'review', 'scheduled']); else if (tab === 'archived') q = q.eq('status', 'archived');
+    const r = await q;
+    if (r.error) { card.appendChild(h('div', { class: 'msg err' }, BZ.errText(r.error))); return; }
+    const cn = {}; cats.forEach(function (c) { cn[c.id] = c.name; });
+    const rows = r.data.map(function (a) { return { a: a, s: seoChecks(a) }; });
+    const bad = rows.filter(function (x) { return x.s.broken; }).length;
+    if (bad) card.appendChild(h('div', { class: 'msg err', style: { marginBottom: '12px' } }, bad + ' bài có liên kết tới trang không tồn tại trên mhtbiz.com. Mở bài, xem mục "Điểm SEO" để sửa.'));
+    card.appendChild(h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+      h('thead', null, h('tr', null, ['Bài viết', 'Chuyên mục', 'Trạng thái', 'Điểm SEO', 'Ngày đăng', 'Cập nhật', ''].map(function (x) { return h('th', null, x); }))),
+      h('tbody', null, rows.length ? rows.map(function (x) {
+        const a = x.a, st = stateOf(a);
+        return h('tr', { class: 'clickable', onclick: function (e) { if (e.target.closest('a,button')) return; edit(a.id); } },
+          h('td', null, h('b', null, a.title), h('small', { class: 'mono' }, '/blog/' + a.slug)), h('td', null, cn[a.category_id] || '—'),
+          h('td', null, h('span', { class: 'chip ' + st[1] }, st[0])), h('td', null, scoreChip(x.s.score)),
+          h('td', null, a.published_at ? fmt.date(a.published_at) : '—'), h('td', null, fmt.dateTime(a.updated_at)),
+          h('td', null, h('div', { class: 'row-actions' }, h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { edit(a.id); } }, canEdit ? 'Sửa' : 'Xem'),
+            a.status === 'published' ? h('a', { class: 'btn btn-ghost btn-sm', href: '/blog/' + a.slug, target: '_blank', rel: 'noopener' }, 'Mở ↗') : null)));
+      }) : BZ.emptyRow(7, 'Chưa có bài viết.')))));
+  }
+
+  /* ================= Chuyên mục ================= */
+  async function catList(card) {
+    const cnt = await sb.from('blog_articles').select('category_id');
+    const n = {}; (cnt.data || []).forEach(function (x) { n[x.category_id] = (n[x.category_id] || 0) + 1; });
+    card.appendChild(h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+      h('thead', null, h('tr', null, ['Chuyên mục', 'Đường dẫn', 'Mô tả', 'Số bài', ''].map(function (x) { return h('th', null, x); }))),
+      h('tbody', null, cats.length ? cats.map(function (c) {
+        return h('tr', null, h('td', null, h('b', null, c.name)), h('td', { class: 'mono' }, '/blog/chu-de/' + c.slug), h('td', null, c.description || '—'), h('td', { class: 'num' }, n[c.id] || 0),
+          h('td', null, canEdit ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { catForm(c); } }, 'Sửa') : null));
+      }) : BZ.emptyRow(5, 'Chưa có chuyên mục.')))));
+  }
+  function catForm(c) {
+    const name = h('input', { type: 'text', value: c ? c.name : '', maxlength: '80' }), slug = h('input', { type: 'text', value: c ? c.slug : '', maxlength: '80' });
+    const desc = h('textarea', { rows: '3', maxlength: '300' }, c ? c.description || '' : ''), ord = h('input', { type: 'number', value: c ? c.sort_order : (cats.length + 1) });
+    let touched = !!c; slug.addEventListener('input', function () { touched = true; });
+    name.addEventListener('input', function () { if (!touched) slug.value = MD.slugify(name.value); });
+    BZ.modal({ title: c ? 'Sửa chuyên mục' : 'Thêm chuyên mục', body: h('div', { class: 'form-grid' }, BZ.field('Tên chuyên mục *', name), BZ.field('Đường dẫn', slug, 'Chữ thường, không dấu, gạch ngang'),
+      h('div', { class: 'span2' }, BZ.field('Mô tả (hiện trên trang chuyên mục, tốt cho SEO)', desc)), BZ.field('Thứ tự', ord)),
+      actions: [{ label: 'Hủy', kind: 'ghost' }, { label: 'Lưu', kind: 'primary', onClick: async function (close, msg) {
+        const row = { name: name.value.trim(), slug: MD.slugify(slug.value || name.value), description: desc.value.trim() || null, sort_order: Number(ord.value) || 0 };
+        if (!row.name || !row.slug) { msg.textContent = 'Nhập tên chuyên mục.'; msg.hidden = false; return; }
+        const r = c ? await sb.from('blog_categories').update(row).eq('id', c.id) : await sb.from('blog_categories').insert(row);
+        if (r.error) throw new Error(/duplicate|unique/i.test(r.error.message) ? 'Đường dẫn chuyên mục đã tồn tại.' : r.error.message);
+        close(); BZ.toast('Đã lưu chuyên mục.', 'ok'); list();
+      } }] });
+  }
+
+  /* ================= Soạn bài ================= */
+  async function edit(id) {
+    let a;
+    if (id) {
+      const r = await sb.from('blog_articles').select('*').eq('id', id).maybeSingle();
+      if (r.error || !r.data) return BZ.toast(r.error ? BZ.errText(r.error) : 'Không tìm thấy bài.', 'err');
+      a = r.data;
+    } else {
+      a = { title: '', slug: '', excerpt: '', content: '## Trả lời nhanh\n\nTrả lời ngắn gọn câu hỏi chính của bài trong 2–3 câu (Google hay lấy đoạn này làm đoạn trích nổi bật).\n\n## \n\n', status: 'draft', faqs: [], source_references: [], category_id: cats[0] ? cats[0].id : null, author_id: authors[0] ? authors[0].id : null };
+    }
+    history.replaceState(null, '', '#' + (a.id || 'moi'));
+    host.textContent = '';
+    const dis = canEdit ? null : true;
+    const I = function (k, type, extra) { return h('input', Object.assign({ type: type || 'text', value: a[k] || '', disabled: dis }, extra || {})); };
+    const title = I('title', 'text', { class: 'title', placeholder: 'Tiêu đề bài viết', maxlength: '200', 'aria-label': 'Tiêu đề' });
+    const slug = I('slug', 'text', { maxlength: '160' });
+    const excerpt = h('textarea', { rows: '3', maxlength: '400', disabled: dis }, a.excerpt || '');
+    const content = h('textarea', { class: 'md', disabled: dis, spellcheck: 'true', 'aria-label': 'Nội dung (Markdown)' }, a.content || '');
+    const seoTitle = I('seo_title', 'text', { maxlength: '120' }), seoDesc = h('textarea', { rows: '3', maxlength: '300', disabled: dis }, a.seo_description || '');
+    const kw = I('focus_keyword', 'text', { maxlength: '100' }), canon = I('canonical_url', 'url', { placeholder: 'Để trống = đường dẫn bài' });
+    const img = I('featured_image_url', 'url', { placeholder: 'https://… (ảnh 1200×630)' }), imgAlt = I('featured_image_alt', 'text', { maxlength: '200' });
+    const cat = h('select', { disabled: dis }, h('option', { value: '' }, '— Không chuyên mục —'), cats.map(function (c) { return h('option', { value: c.id, selected: c.id === a.category_id ? true : null }, c.name); }));
+    const au = h('select', { disabled: dis }, authors.map(function (x) { return h('option', { value: x.id, selected: x.id === a.author_id ? true : null }, x.name); }));
+    const isSched = a.status === 'published' && a.published_at && new Date(a.published_at) > new Date();
+    const status = h('select', { disabled: dis }, [['draft', 'Nháp'], ['review', 'Chờ duyệt'], ['published', 'Xuất bản / hẹn giờ'], ['archived', 'Lưu trữ (gỡ khỏi web)']].map(function (s) { return h('option', { value: s[0], selected: (a.status === 'scheduled' ? 'published' : a.status) === s[0] ? true : null }, s[1]); }));
+    const toLocal = function (d) { if (!d) return ''; const x = new Date(d); return new Date(x - x.getTimezoneOffset() * 6e4).toISOString().slice(0, 16); };
+    const pubAt = h('input', { type: 'datetime-local', value: toLocal(a.published_at), disabled: dis });
+    let slugTouched = !!a.slug;
+    slug.addEventListener('input', function () { slugTouched = true; });
+    title.addEventListener('input', function () { if (!slugTouched) slug.value = MD.slugify(title.value); });
+
+    /* FAQ */
+    let faqs = (a.faqs || []).map(function (f) { return { question: f.question || '', answer: f.answer || '' }; });
+    const faqBox = h('div');
+    function drawFaq() {
+      faqBox.textContent = '';
+      faqs.forEach(function (f, i) {
+        const q = h('input', { type: 'text', value: f.question, placeholder: 'Câu hỏi', disabled: dis }), an = h('textarea', { rows: '2', placeholder: 'Trả lời ngắn, 1–3 câu', disabled: dis }, f.answer);
+        q.addEventListener('input', function () { f.question = q.value; refresh(); }); an.addEventListener('input', function () { f.answer = an.value; refresh(); });
+        faqBox.appendChild(h('div', { class: 'faq-row' }, q, an, canEdit ? h('div', { class: 'row-actions' },
+          i ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { faqs.splice(i - 1, 0, faqs.splice(i, 1)[0]); drawFaq(); } }, '↑') : null,
+          h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { faqs.splice(i, 1); drawFaq(); refresh(); } }, 'Xóa')) : null));
+      });
+      if (canEdit) faqBox.appendChild(h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: function () { faqs.push({ question: '', answer: '' }); drawFaq(); } }, '+ Thêm câu hỏi'));
+    }
+    drawFaq();
+    let srcs = (a.source_references || []).map(function (s) { return [s.title || '', s.url || ''].join(' | '); }).join('\n');
+    const srcBox = h('textarea', { class: 'src', rows: '3', placeholder: 'Mỗi dòng một nguồn: Tên nguồn | https://…', disabled: dis }, srcs);
+
+    /* Thanh công cụ Markdown */
+    function wrap(before, after, ph) {
+      const s = content.selectionStart, e = content.selectionEnd, v = content.value, sel = v.slice(s, e) || ph || '';
+      content.value = v.slice(0, s) + before + sel + (after || '') + v.slice(e);
+      content.focus(); content.selectionStart = s + before.length; content.selectionEnd = s + before.length + sel.length; refresh();
+    }
+    function line(prefix) {
+      const s = content.selectionStart, v = content.value, ls = v.lastIndexOf('\n', s - 1) + 1;
+      content.value = v.slice(0, ls) + prefix + v.slice(ls); content.focus(); content.selectionStart = content.selectionEnd = s + prefix.length; refresh();
+    }
+    const prev = h('div', { class: 'prev', 'aria-label': 'Xem trước' });
+    let mode = 'split';
+    const editWrap = h('div', { class: 'split' }, content, prev);
+    const modeBtn = h('button', { type: 'button', onclick: function () { mode = mode === 'split' ? 'edit' : mode === 'edit' ? 'preview' : 'split'; layout(); } });
+    function layout() {
+      content.hidden = mode === 'preview'; prev.hidden = mode === 'edit';
+      editWrap.className = mode === 'split' ? 'split' : ''; modeBtn.textContent = mode === 'split' ? 'Soạn + xem' : mode === 'edit' ? 'Chỉ soạn' : 'Chỉ xem';
+    }
+    layout();
+    const mdbar = canEdit ? h('div', { class: 'mdbar' },
+      [['H2', function () { line('## '); }, 'Tiêu đề mục'], ['H3', function () { line('### '); }, 'Tiêu đề mục con'], ['B', function () { wrap('**', '**', 'chữ đậm'); }, 'Đậm'], ['I', function () { wrap('*', '*', 'chữ nghiêng'); }, 'Nghiêng'],
+        ['• Danh sách', function () { line('- '); }], ['1. Số', function () { line('1. '); }], ['☐ Checklist', function () { line('- [ ] '); }], ['❝', function () { line('> '); }, 'Trích dẫn'],
+        ['🔗 Link', function () { wrap('[', '](/bao-gia/)', 'chữ hiển thị'); }], ['🖼 Ảnh', function () { wrap('![', '](https://)', 'mô tả ảnh'); }],
+        ['▦ Bảng', function () { wrap('\n| Cột 1 | Cột 2 |\n|---|---|\n| ', ' | |\n', 'nội dung'); }]]
+        .map(function (b) { return h('button', { type: 'button', title: b[2] || b[0], onclick: b[1] }, b[0]); }), h('span', { class: 'sp' }), modeBtn) : h('div', { class: 'mdbar' }, h('span', { class: 'sp' }), modeBtn);
+
+    /* Bảng SEO */
+    const cT = h('span', { class: 'cnt' }), cD = h('span', { class: 'cnt' }), cS = h('div', { class: 'mono muted', style: { fontSize: '12px', marginTop: '4px', wordBreak: 'break-all' } });
+    const serp = h('div', { class: 'serp' }), checksBox = h('ul', { class: 'checks' }), scoreBox = h('div', { class: 'score' });
+    const cover = h('img', { class: 'cover-prev', alt: '', hidden: true });
+    function cur() {
+      return { title: title.value.trim(), slug: MD.slugify(slug.value || title.value), excerpt: excerpt.value.trim(), content: content.value, seo_title: seoTitle.value.trim(), seo_description: seoDesc.value.trim(),
+        focus_keyword: kw.value.trim(), featured_image_url: img.value.trim(), featured_image_alt: imgAlt.value.trim(), faqs: faqs.filter(function (f) { return f.question.trim() && f.answer.trim(); }) };
+    }
+    function counter(el, n, lo, hi) { el.textContent = n + ' ký tự'; el.className = 'cnt ' + (n >= lo && n <= hi ? 'ok' : n ? 'bad' : ''); }
+    const refresh = BZ.debounce(function () {
+      const c = cur();
+      prev.innerHTML = MD.render(c.content);   /* MD.render escape mọi HTML do người viết nhập */
+      counter(cT, (c.seo_title || c.title).length, 30, 65); counter(cD, c.seo_description.length, 120, 160);
+      cS.textContent = '/blog/' + (c.slug || '…');
+      serp.textContent = '';
+      serp.append(h('div', { class: 'u' }, 'mhtbiz.com › blog › ' + (c.slug || '…')), h('div', { class: 't' }, (c.seo_title || c.title || 'Tiêu đề bài viết').slice(0, 65) + ((c.seo_title || c.title).length > 65 ? '…' : '')),
+        h('div', { class: 'd' }, (c.seo_description || c.excerpt || 'Mô tả sẽ hiện ở đây…').slice(0, 160) + ((c.seo_description || c.excerpt).length > 160 ? '…' : '')));
+      const s = seoChecks(c);
+      checksBox.textContent = '';
+      s.checks.forEach(function (x) { checksBox.appendChild(h('li', { class: x.level }, h('i', null, x.level === 'ok' ? '✓' : x.level === 'warn' ? '!' : '✕'), h('span', null, x.text))); });
+      scoreBox.textContent = ''; scoreBox.append(h('b', { class: s.score >= 80 ? 'pos' : s.score >= 60 ? '' : 'neg' }, String(s.score)), h('span', { class: 'muted' }, '/100 · ' + s.words + ' từ · ~' + Math.max(1, Math.round(s.words / 220)) + ' phút đọc'));
+      cover.hidden = !c.featured_image_url; if (c.featured_image_url) { cover.src = c.featured_image_url; cover.alt = c.featured_image_alt; }
+    }, 250);
+    [title, slug, excerpt, content, seoTitle, seoDesc, kw, img, imgAlt].forEach(function (el) { el.addEventListener('input', refresh); });
+    refresh();
+
+    let dirty = false;
+    [title, slug, excerpt, content, seoTitle, seoDesc, kw, canon, img, imgAlt, cat, au, status, pubAt, srcBox].forEach(function (el) { el.addEventListener('input', function () { dirty = true; }); el.addEventListener('change', function () { dirty = true; }); });
+    window.onbeforeunload = function () { return dirty ? 'Bài chưa lưu' : undefined; };
+
+    async function save(stay) {
+      const c = cur();
+      if (c.title.length < 10) throw new Error('Tiêu đề quá ngắn.');
+      if (!c.slug) throw new Error('Thiếu đường dẫn.');
+      if (slugs[c.slug] && slugs[c.slug] !== a.id) throw new Error('Đường dẫn "' + c.slug + '" đã dùng cho bài khác.');
+      let st = status.value, at = pubAt.value ? new Date(pubAt.value).toISOString() : null;
+      if (st === 'published') {
+        if (!at) at = new Date().toISOString();
+        const s = seoChecks(c);
+        if (s.broken && !(await BZ.confirm('Bài có liên kết hỏng', 'Bài đang trỏ tới trang không tồn tại trên mhtbiz.com. Vẫn xuất bản?', 'Vẫn xuất bản'))) return;
+        if (a.status === 'published' && a.slug && a.slug !== c.slug && !(await BZ.confirm('Đổi đường dẫn bài đã đăng', 'Link cũ /blog/' + a.slug + ' sẽ không mở được nữa (mất thứ hạng Google đang có). Vẫn đổi?', 'Vẫn đổi'))) return;
+      }
+      const words = MD.text(c.content).split(/\s+/).filter(Boolean).length;
+      const row = { title: c.title, slug: c.slug, excerpt: c.excerpt || null, content: c.content, seo_title: c.seo_title || null, seo_description: c.seo_description || null,
+        focus_keyword: c.focus_keyword || null, canonical_url: canon.value.trim() || null, featured_image_url: c.featured_image_url || null, featured_image_alt: c.featured_image_alt || null,
+        og_image: c.featured_image_url || null, category_id: cat.value || null, author_id: au.value || null, status: st, published_at: st === 'published' ? at : (a.published_at || null),
+        scheduled_at: null, reading_minutes: Math.max(1, Math.round(words / 220)), faqs: c.faqs,
+        source_references: srcBox.value.split('\n').map(function (l) { const p = l.split('|'); return { title: (p[0] || '').trim(), url: (p[1] || '').trim() }; }).filter(function (x) { return x.title || x.url; }),
+        updated_by: ctx.user.id };
+      let r;
+      if (a.id) r = await sb.from('blog_articles').update(row).eq('id', a.id).select('*').maybeSingle();
+      else { row.created_by = ctx.user.id; r = await sb.from('blog_articles').insert(row).select('*').maybeSingle(); }
+      if (r.error) throw new Error(/duplicate|unique/i.test(r.error.message) ? 'Đường dẫn đã dùng cho bài khác.' : r.error.message);
+      dirty = false; a = r.data; slugs[a.slug] = a.id;
+      const sch = a.status === 'published' && new Date(a.published_at) > new Date();
+      BZ.toast(a.status === 'published' ? (sch ? 'Đã hẹn giờ đăng lúc ' + fmt.dateTime(a.published_at) + '.' : 'Đã xuất bản. Bài hiện trên blog trong khoảng 5 phút.') : 'Đã lưu.', 'ok');
+      if (stay) { history.replaceState(null, '', '#' + a.id); pubAt.value = toLocal(a.published_at); viewLink.hidden = a.status !== 'published'; viewLink.href = '/blog/' + a.slug; }
+      else { window.onbeforeunload = null; list(); }
+    }
+    const errBox = h('div', { class: 'msg err', role: 'alert', hidden: true });
+    const run = function (stay) { return async function (e) { const b = e.currentTarget; b.disabled = true; errBox.hidden = true; try { await save(stay); } catch (er) { errBox.textContent = BZ.errText(er); errBox.hidden = false; } finally { b.disabled = false; } }; };
+    const viewLink = h('a', { class: 'btn btn-ghost btn-sm', href: '/blog/' + (a.slug || ''), target: '_blank', rel: 'noopener', hidden: a.status !== 'published' }, 'Xem trên web ↗');
+
+    host.append(
+      h('div', { class: 'toolbar' }, h('button', { type: 'button', class: 'btn btn-ghost', onclick: function () { if (dirty && !confirm('Bài chưa lưu. Bỏ thay đổi?')) return; window.onbeforeunload = null; list(); } }, '‹ Danh sách bài'),
+        h('span', { style: { flex: '1' } }), a.id ? h('span', { class: 'chip ' + stateOf(a)[1] }, stateOf(a)[0]) : null, viewLink),
+      errBox,
+      h('div', { class: 'ed' },
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: '16px', minWidth: '0' } },
+          h('section', { class: 'card' }, title, h('div', { style: { marginTop: '12px' } }, BZ.field('Đường dẫn', slug, 'Tự tạo từ tiêu đề. Không nên đổi sau khi đã đăng.')), cS,
+            h('div', { style: { marginTop: '12px' } }, BZ.field('Tóm tắt (hiện dưới tiêu đề và trong danh sách bài)', excerpt))),
+          h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Nội dung')), mdbar, editWrap,
+            h('p', { class: 'muted', style: { fontSize: '12px', marginTop: '8px' } }, 'Viết bằng Markdown: "## " tiêu đề mục, "### " mục con, **đậm**, *nghiêng*, [chữ](/duong-dan) để chèn link, "- " danh sách, "- [ ] " checklist, "> " trích dẫn.')),
+          h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Câu hỏi thường gặp (FAQ)')), h('p', { class: 'muted', style: { fontSize: '13px', marginBottom: '10px' } }, 'Hiện cuối bài và gửi cho Google dạng hỏi đáp.'), faqBox),
+          h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Nguồn tham khảo')), srcBox)),
+        h('div', { class: 'edside' },
+          h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Đăng bài')),
+            h('div', { style: { display: 'grid', gap: '12px' } }, BZ.field('Trạng thái', status), BZ.field('Ngày giờ đăng', pubAt, 'Chọn giờ tương lai để hẹn giờ. Để trống = đăng ngay.'), BZ.field('Chuyên mục', cat), BZ.field('Tác giả', au),
+              canEdit ? h('div', { class: 'row-actions' }, h('button', { type: 'button', class: 'btn btn-primary', onclick: run(true) }, 'Lưu'), h('button', { type: 'button', class: 'btn btn-ghost', onclick: run(false) }, 'Lưu & đóng'),
+                a.id && a.status !== 'published' ? h('button', { type: 'button', class: 'btn btn-ghost', style: { color: 'var(--danger)' }, onclick: async function () {
+                  if (!(await BZ.confirm('Xóa bài nháp', 'Xóa hẳn bài "' + a.title + '"? Không khôi phục được.', 'Xóa', true))) return;
+                  const r = await sb.from('blog_articles').delete().eq('id', a.id); if (r.error) return BZ.toast(BZ.errText(r.error), 'err');
+                  window.onbeforeunload = null; BZ.toast('Đã xóa.', 'ok'); list();
+                } }, 'Xóa') : null) : null)),
+          h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Điểm SEO')), scoreBox, h('div', { style: { margin: '12px 0' } }, checksBox)),
+          h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Hiển thị trên Google')), serp,
+            h('div', { style: { display: 'grid', gap: '12px', marginTop: '12px' } },
+              h('div', null, cT, BZ.field('Tiêu đề SEO', seoTitle, 'Để trống = dùng tiêu đề bài')), h('div', null, cD, BZ.field('Mô tả SEO', seoDesc)),
+              BZ.field('Từ khóa chính', kw, 'Cụm từ khách hay tìm, VD: phần mềm quản lý garage'), BZ.field('Canonical (nâng cao)', canon))),
+          h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Ảnh đại diện')), cover,
+            h('div', { style: { display: 'grid', gap: '12px', marginTop: '10px' } }, BZ.field('Link ảnh', img, 'Dùng khi chia sẻ Facebook, Zalo'), BZ.field('Mô tả ảnh (alt)', imgAlt))))));
+  }
+
+  await lookups();
+  const hk = decodeURIComponent(location.hash.slice(1));
+  if (UUID.test(hk)) edit(hk); else if (hk === 'moi' && canEdit) edit(null); else list();
+});
+</script>
+</body>
+</html>

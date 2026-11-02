@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<script>if(/^(biztech-web|zetabiz)(-mhtbiz)?\.vercel\.app$/.test(location.hostname))location.replace('https://mhtbiz.com'+location.pathname+location.search+location.hash);</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Báo cáo kinh doanh – Quản trị Zetabiz</title>
+<link rel="icon" type="image/png" href="/assets/zetabiz-mark-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>
+.funnel{display:grid;gap:8px}
+.funnel .st{display:grid;grid-template-columns:150px 1fr 70px;gap:12px;align-items:center;font-size:14px}
+.funnel .st .bar{height:26px;border-radius:8px;background:var(--primary);min-width:2px;opacity:.85}
+.funnel .st b{font:500 14px var(--mono);text-align:right}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:900px){.two{grid-template-columns:1fr}.funnel .st{grid-template-columns:110px 1fr 50px}}
+</style>
+</head>
+<body data-page="reports">
+<main id="main"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/admin/config.js"></script>
+<script src="/admin/app.js"></script>
+<script src="/admin/finance.js"></script>
+<script src="/admin/xlsx-lite.js"></script>
+<script>
+BZ.boot(async function (ctx) {
+  const h = BZ.h, main = ctx.main, fmt = BZ.fmt, vnd = FIN.vnd, short = FIN.short;
+  const head = BZ.pageHead('Báo cáo kinh doanh', 'Doanh thu đã thu, doanh thu định kỳ (MRR), khách mới, phễu bán hàng và gói sắp hết hạn.');
+  main.appendChild(head);
+  const can = ctx.can.viewFinance || ctx.roles.indexOf('sales') >= 0;
+  if (!can) { main.appendChild(h('div', { class: 'msg info' }, 'Chỉ Quản trị, Kế toán, Kinh doanh hoặc Chỉ xem mới xem được báo cáo này.')); return; }
+
+  const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  const PERIODS = [
+    { k: '6m', label: '6 tháng gần đây', r: [new Date(y, m - 5, 1), new Date(y, m + 1, 0)] },
+    { k: '12m', label: '12 tháng gần đây', r: [new Date(y, m - 11, 1), new Date(y, m + 1, 0)] },
+    { k: 'm', label: 'Tháng này', r: [new Date(y, m, 1), new Date(y, m + 1, 0)] },
+    { k: 'y', label: 'Năm nay', r: [new Date(y, 0, 1), new Date(y, 11, 31)] },
+    { k: 'c', label: 'Tùy chọn…' }
+  ];
+  const sel = FIN.selectEl(PERIODS.map(function (p) { return { value: p.k, label: p.label }; }), '6m'); sel.setAttribute('aria-label', 'Kỳ báo cáo');
+  const from = h('input', { type: 'date', 'aria-label': 'Từ ngày', hidden: true }), to = h('input', { type: 'date', 'aria-label': 'Đến ngày', hidden: true });
+  let last = null;
+  head.appendChild(h('div', { class: 'period' }, sel, from, to, h('button', { type: 'button', class: 'btn btn-ghost', onclick: function () { if (last) excel(last.s, last.rg); } }, '⬇ Tải Excel')));
+  function range() {
+    if (sel.value === 'c') return [from.value, to.value];
+    const p = PERIODS.find(function (x) { return x.k === sel.value; });
+    return [FIN.iso(p.r[0]), FIN.iso(p.r[1])];
+  }
+  sel.addEventListener('change', function () { const c = sel.value === 'c'; if (c && !from.value) { from.value = FIN.iso(PERIODS[0].r[0]); to.value = FIN.iso(PERIODS[0].r[1]); } from.hidden = to.hidden = !c; load(); });
+  from.addEventListener('change', load); to.addEventListener('change', load);
+  const body = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '20px' } });
+  main.appendChild(body);
+
+  function kpi(icon, label, value, note, money) {
+    return h('div', { class: 'kpi' }, BZ.icon3d(icon, true), h('div', null, h('small', null, label), h('b', { title: money ? vnd(value) : null }, money ? short(value) : fmt.num(value)), note ? h('em', null, note) : null));
+  }
+  function mlabel(ym) { const p = ym.split('-'); return 'T' + Number(p[1]) + '/' + p[0].slice(2); }
+
+  /* Biểu đồ cột doanh thu theo tháng + đường khách mới */
+  function chart(rows) {
+    const W = 640, H = 240, L = 56, B = 28, T = 12, R = 36, ns = 'http://www.w3.org/2000/svg';
+    const max = Math.max(1000000, ...rows.map(function (r) { return r.revenue; }));
+    const step = Math.pow(10, Math.floor(Math.log10(max))), top = Math.ceil(max / step) * step;
+    const cmax = Math.max(4, ...rows.map(function (r) { return r.new_orgs; }));
+    const s = document.createElementNS(ns, 'svg'); s.setAttribute('viewBox', '0 0 ' + W + ' ' + H); s.setAttribute('role', 'img');
+    s.setAttribute('aria-label', 'Doanh thu và khách mới theo tháng: ' + rows.map(function (r) { return mlabel(r.month) + ' ' + vnd(r.revenue) + ', ' + r.new_orgs + ' khách mới'; }).join('; '));
+    function el(tag, a, txt) { const e = document.createElementNS(ns, tag); Object.keys(a).forEach(function (k) { e.setAttribute(k, a[k]); }); if (txt !== undefined) e.textContent = txt; s.appendChild(e); return e; }
+    const ph = H - B - T;
+    for (let i = 0; i <= 4; i++) {
+      const yy = T + ph - ph * i / 4;
+      el('line', { x1: L, x2: W - R, y1: yy, y2: yy, stroke: '#E4E9F2', 'stroke-width': 1 });
+      el('text', { x: L - 8, y: yy + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#5B6785' }, short(top * i / 4));
+      el('text', { x: W - R + 8, y: yy + 4, 'font-size': 11, fill: '#B45309' }, String(Math.round(cmax * i / 4)));
+    }
+    const gw = (W - L - R) / Math.max(rows.length, 1), bw = Math.min(28, gw * 0.5);
+    const pts = [];
+    rows.forEach(function (r, i) {
+      const cx = L + gw * i + gw / 2, bh = ph * r.revenue / top;
+      const b = el('rect', { x: cx - bw / 2, y: T + ph - bh, width: bw, height: Math.max(bh, r.revenue ? 1 : 0), rx: 4, fill: '#1D4ED8' });
+      const tt = document.createElementNS(ns, 'title'); tt.textContent = mlabel(r.month) + ': ' + vnd(r.revenue) + ' · ' + r.new_orgs + ' khách mới'; b.appendChild(tt);
+      el('text', { x: cx, y: H - 8, 'text-anchor': 'middle', 'font-size': 11, fill: '#5B6785' }, mlabel(r.month));
+      pts.push([cx, T + ph - ph * r.new_orgs / cmax]);
+    });
+    if (pts.length > 1) el('polyline', { points: pts.map(function (p) { return p.join(','); }).join(' '), fill: 'none', stroke: '#F59E0B', 'stroke-width': 2.5, 'stroke-linejoin': 'round' });
+    pts.forEach(function (p) { el('circle', { cx: p[0], cy: p[1], r: 3.5, fill: '#F59E0B' }); });
+    return h('div', { class: 'chart-box' }, s);
+  }
+  function bars(rows, color) {
+    const max = Math.max(1, ...rows.map(function (r) { return r.v; }));
+    return h('div', { class: 'bars' }, rows.map(function (r) {
+      return h('div', { class: 'row' }, h('span', { class: 'lbl', title: r.label }, r.label),
+        h('div', { class: 'track' }, h('span', { style: { width: (r.v / max * 100) + '%', background: color } })), h('span', { class: 'v', title: r.money ? vnd(r.v) : null }, r.money ? short(r.v) : fmt.num(r.v)));
+    }));
+  }
+
+  let req = 0;
+  async function load() {
+    const my = ++req, rg = range();
+    if (!rg[0] || !rg[1]) return;
+    body.textContent = ''; body.appendChild(h('p', { class: 'muted' }, 'Đang tải số liệu…'));
+    let s;
+    try { s = await BZ.rpc('saas_report', { _from: rg[0], _to: rg[1] }); }
+    catch (e) { if (my === req) { body.textContent = ''; body.appendChild(h('div', { class: 'msg err' }, BZ.errText(e))); } return; }
+    if (my !== req) return;
+    last = { s: s, rg: rg };
+    body.textContent = '';
+    const f = s.funnel;
+    body.appendChild(h('div', { class: 'kpis' },
+      kpi('finance', 'Doanh thu đã thu', s.revenue, s.paid_count + ' khoản thanh toán được duyệt', true),
+      kpi('subscriptions', 'Doanh thu định kỳ / tháng (MRR)', s.mrr, s.active_subs + ' gói đang chạy · ' + s.active_orgs + ' khách', true),
+      kpi('leads', 'Khách tiềm năng mới', f.leads, f.leads ? 'Chuyển thành đơn trả tiền: ' + Math.round(f.paid_orders / f.leads * 100) + '%' : 'Trong kỳ'),
+      kpi('payments', 'Đơn chờ thanh toán', s.unpaid.amount, s.unpaid.count + ' đơn (mọi thời điểm)', true)));
+    if (!s.revenue && !s.active_subs) body.appendChild(h('div', { class: 'msg info' }, 'Chưa có khoản thanh toán nào được duyệt nên doanh thu và MRR đang bằng 0. Số liệu tự lên khi kế toán duyệt thanh toán ở trang Thanh toán.'));
+
+    body.appendChild(h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Doanh thu & khách mới theo tháng'),
+      h('div', { class: 'legend' }, h('span', null, h('i', { style: { background: '#1D4ED8' } }), 'Doanh thu đã thu'), h('span', null, h('i', { style: { background: '#F59E0B' } }), 'Doanh nghiệp mới'))), chart(s.by_month),
+      h('div', { class: 'table-wrap', style: { marginTop: '14px' } }, h('table', { class: 't' },
+        h('thead', null, h('tr', null, ['Tháng', 'Doanh thu', 'Doanh nghiệp mới', 'Khách tiềm năng', 'Đơn hàng'].map(function (x, i) { return h('th', { style: i ? { textAlign: 'right' } : null }, x); }))),
+        h('tbody', null, s.by_month.slice().reverse().map(function (r) {
+          return h('tr', null, h('td', null, mlabel(r.month)), h('td', { class: 'num' }, vnd(r.revenue)), h('td', { class: 'num' }, r.new_orgs), h('td', { class: 'num' }, r.leads), h('td', { class: 'num' }, r.orders));
+        }))))));
+
+    const steps = [['Khách tiềm năng', f.leads], ['Đã báo giá', f.quoted], ['Đơn hàng tạo mới', f.orders], ['Đơn đã trả tiền', f.paid_orders]];
+    const fmax = Math.max(1, ...steps.map(function (x) { return x[1]; }));
+    body.appendChild(h('div', { class: 'two' },
+      h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Phễu bán hàng trong kỳ')),
+        h('div', { class: 'funnel' }, steps.map(function (x) { return h('div', { class: 'st' }, h('span', null, x[0]), h('div', null, h('div', { class: 'bar', style: { width: (x[1] / fmax * 100) + '%' } })), h('b', null, fmt.num(x[1]))); })),
+        h('h3', { class: 'sec-t', style: { marginTop: '18px' } }, 'Nguồn khách tiềm năng'),
+        s.lead_sources.length ? bars(s.lead_sources.map(function (x) { return { label: x.source + (x.won ? ' (' + x.won + ' chốt)' : ''), v: x.n }; }), '#0EA5E9') : h('p', { class: 'muted' }, 'Chưa có khách tiềm năng trong kỳ.')),
+      h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Doanh thu theo sản phẩm')),
+        s.by_product.length ? bars(s.by_product.map(function (x) { return { label: x.name, v: Number(x.revenue), money: true }; }), '#1D4ED8') : h('p', { class: 'muted' }, 'Chưa có doanh thu trong kỳ.'),
+        h('dl', { class: 'kv', style: { marginTop: '16px' } }, h('dt', null, 'Doanh thu từ khách gia hạn / mua lại'), h('dd', null, vnd(s.renew_revenue) + (s.revenue ? ' (' + Math.round(s.renew_revenue / s.revenue * 100) + '%)' : '')),
+          h('dt', null, 'Gói hết hạn / hủy trong kỳ'), h('dd', null, fmt.num(s.churned)),
+          h('dt', null, 'Doanh thu bình quân / khách / tháng'), h('dd', null, s.active_orgs ? vnd(Math.round(s.mrr / s.active_orgs)) : '—')),
+        s.top_customers.length ? [h('h3', { class: 'sec-t', style: { marginTop: '18px' } }, 'Khách trả nhiều nhất'), bars(s.top_customers.map(function (x) { return { label: x.name, v: Number(x.revenue), money: true }; }), '#059669')] : null)));
+
+    body.appendChild(h('section', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Gói hết hạn trong 30 ngày tới (' + s.expiring.length + ')'), h('a', { class: 'btn btn-ghost btn-sm', href: '/admin/subscriptions.html' }, 'Mở Khách hàng & gói')),
+      s.expiring.length ? h('div', { class: 'table-wrap' }, h('table', { class: 't' },
+        h('thead', null, h('tr', null, ['Mã gói', 'Doanh nghiệp', 'Điện thoại', 'Sản phẩm / gói', 'Hết hạn'].map(function (x) { return h('th', null, x); }))),
+        h('tbody', null, s.expiring.map(function (x) {
+          const d = Math.ceil((new Date(x.end) - new Date()) / 864e5);
+          return h('tr', null, h('td', null, h('b', null, x.code)), h('td', null, x.org || '—'), h('td', null, x.phone ? h('a', { href: 'tel:' + x.phone.replace(/\s/g, '') }, x.phone) : '—'),
+            h('td', null, [x.product, x.plan].filter(Boolean).join(' – ')), h('td', null, fmt.date(x.end), h('small', { class: d < 0 ? 'neg' : null }, d < 0 ? 'Quá ' + (-d) + ' ngày' : 'Còn ' + d + ' ngày')));
+        })))) : h('p', { class: 'muted' }, 'Không có gói nào sắp hết hạn.')));
+  }
+
+  function excel(s, rg) {
+    const wb = XL.book();
+    const H = { b: true, border: true, fill: 'F2F2F2', h: 'center', wrap: true }, M = { border: true, fmt: '#,##0' }, T = { border: true };
+    const ws = wb.sheet('Tổng hợp', { cols: [34, 20] });
+    ws.merge(1, 1, 1, 2, 'BÁO CÁO KINH DOANH SAAS', { b: true, sz: 14, h: 'center' });
+    ws.merge(2, 1, 2, 2, 'Từ ' + fmt.date(rg[0]) + ' đến ' + fmt.date(rg[1]), { i: true, h: 'center' });
+    [['Doanh thu đã thu', s.revenue], ['Số khoản thanh toán được duyệt', s.paid_count], ['Doanh thu từ khách gia hạn / mua lại', s.renew_revenue], ['MRR (doanh thu định kỳ / tháng, hiện tại)', s.mrr],
+      ['Gói đang chạy', s.active_subs], ['Khách đang dùng', s.active_orgs], ['Gói hết hạn / hủy trong kỳ', s.churned], ['Khách tiềm năng mới', s.funnel.leads], ['Đã báo giá', s.funnel.quoted],
+      ['Đơn hàng tạo mới', s.funnel.orders], ['Đơn đã trả tiền', s.funnel.paid_orders], ['Đơn chờ thanh toán (mọi thời điểm)', s.unpaid.count], ['Giá trị đơn chờ thanh toán', s.unpaid.amount]]
+      .forEach(function (r, i) { ws.set(4 + i, 1, r[0], T); ws.set(4 + i, 2, Number(r[1]) || 0, M); });
+    const w2 = wb.sheet('Theo tháng', { cols: [12, 18, 16, 16, 12], freezeRow: 1 });
+    ['Tháng', 'Doanh thu', 'Doanh nghiệp mới', 'Khách tiềm năng', 'Đơn hàng'].forEach(function (x, i) { w2.set(1, i + 1, x, H); });
+    s.by_month.forEach(function (r, i) { w2.set(i + 2, 1, r.month, T); w2.set(i + 2, 2, r.revenue, M); w2.set(i + 2, 3, r.new_orgs, M); w2.set(i + 2, 4, r.leads, M); w2.set(i + 2, 5, r.orders, M); });
+    const n = s.by_month.length + 2; w2.set(n, 1, 'Cộng', { b: true, border: true });
+    ['B', 'C', 'D', 'E'].forEach(function (c, i) { w2.set(n, i + 2, { f: 'SUM(' + c + '2:' + c + (n - 1) + ')', v: s.by_month.reduce(function (a, r) { return a + Number(r[['revenue', 'new_orgs', 'leads', 'orders'][i]]); }, 0) }, { b: true, border: true, fmt: '#,##0' }); });
+    const w3 = wb.sheet('Theo sản phẩm', { cols: [32, 18, 12] });
+    ['Sản phẩm', 'Doanh thu', 'Số khoản'].forEach(function (x, i) { w3.set(1, i + 1, x, H); });
+    s.by_product.forEach(function (r, i) { w3.set(i + 2, 1, r.name, T); w3.set(i + 2, 2, Number(r.revenue), M); w3.set(i + 2, 3, r.count, M); });
+    const w4 = wb.sheet('Sắp hết hạn', { cols: [14, 34, 16, 34, 14] });
+    ['Mã gói', 'Doanh nghiệp', 'Điện thoại', 'Sản phẩm / gói', 'Hết hạn'].forEach(function (x, i) { w4.set(1, i + 1, x, H); });
+    s.expiring.forEach(function (r, i) { [r.code, r.org, r.phone, [r.product, r.plan].filter(Boolean).join(' – '), fmt.date(r.end)].forEach(function (v, j) { w4.set(i + 2, j + 1, v || '', T); }); });
+    wb.download('BaoCaoKinhDoanh_' + rg[0] + '_' + rg[1] + '.xlsx');
+  }
+  await load();
+});
+</script>
+</body>
+</html>
